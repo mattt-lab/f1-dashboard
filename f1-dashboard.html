@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Dashboard</title>
+    <link rel="icon" href="f1-favicon.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --red: #e10600; --dark: #080808; --card: #141414; --card2: #1c1c1c;
+            --text: #f0f0f0; --muted: #6a6a6a; --green: #00cf6d; --orange: #ff8c00;
+            --border: #252525; --gold: #ffd700; --silver: #b0b0b0; --bronze: #cd7f32;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--dark); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; font-size: 14px; line-height: 1.4; }
+
+        /* ── Header ── */
+        header { background: #0d0d0d; border-bottom: 3px solid var(--red); padding: 12px 24px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; }
+        .f1-wordmark { font-size: 22px; font-weight: 900; font-style: italic; letter-spacing: -1px; text-transform: uppercase; color: var(--red); white-space: nowrap; }
+        .f1-wordmark span { color: var(--text); }
+        .header-season { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+
+        /* ── Pill Nav ── */
+        .pill-nav { margin-left: auto; display: flex; gap: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 20px; padding: 3px; }
+        .pill { font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: 16px; text-decoration: none; color: var(--muted); transition: all 0.15s; white-space: nowrap; }
+        .pill:hover { color: var(--text); }
+        .pill.active { background: var(--red); color: #fff; }
+
+        /* ── Layout ── */
+        main { max-width: 1440px; margin: 0 auto; padding: 28px 20px; display: flex; flex-direction: column; gap: 32px; }
+        .section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2.5px; color: var(--muted); margin-bottom: 14px; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+
+        /* ── Weekend Banner ── */
+        .weekend-banner {
+            border-radius: 12px; padding: 22px 26px; position: relative; overflow: hidden;
+            background: linear-gradient(135deg, #130a0a 0%, var(--card) 70%);
+            border: 1px solid #2e1212; margin-bottom: 16px;
+        }
+        .weekend-banner::after { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--red),#ff4422); }
+        .weekend-banner.post-race { background: linear-gradient(135deg, #0a0a0a 0%, var(--card) 70%); border-color: var(--border); }
+        .weekend-banner.post-race::after { background: var(--muted); }
+        .wb-phase { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--red); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+        .wb-phase.post { color: var(--muted); }
+        .phase-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: blink 1.4s infinite; }
+        .wb-name { font-size: 26px; font-weight: 800; line-height: 1.05; margin-bottom: 4px; }
+        .wb-circuit { font-size: 13px; color: var(--muted); }
+        .wb-meta { font-size: 12px; color: var(--muted); margin-top: 10px; }
+        .wb-inner { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; }
+        @media (max-width: 600px) { .wb-inner { grid-template-columns: 1fr; } }
+        .wb-cd-box { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 16px 24px; text-align: center; flex-shrink: 0; min-width: 185px; }
+        .wb-cd-session { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 10px; white-space: nowrap; }
+        .wb-cd-nums { font-size: 30px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; line-height: 1; }
+        .wb-cd-unit-labels { display: flex; margin-top: 6px; }
+        .wb-cd-unit-labels span { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); flex: 1; text-align: center; }
+
+        /* ── Weekend Grid — now single column, news flows below ── */
+
+        /* ── Sessions Panel ── */
+        .sessions-panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .sessions-panel-header { padding: 16px 20px 0; }
+        .tz-note { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+
+        .session-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 20px; border-top: 1px solid var(--border); }
+        .session-row.past { opacity: 0.38; }
+        .session-row:first-of-type { border-top: none; }
+        .session-left { display: flex; align-items: center; gap: 10px; }
+        .session-key { font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 5px; min-width: 40px; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; }
+        .key-fp1,.key-fp2,.key-fp3 { background: rgba(255,255,255,0.06); color: #aaa; }
+        .key-qual { background: rgba(225,6,0,0.15); color: var(--red); }
+        .key-race { background: var(--red); color: #fff; }
+        .key-spr  { background: rgba(255,140,0,0.18); color: var(--orange); }
+        .key-sq   { background: rgba(255,140,0,0.12); color: var(--orange); }
+        .session-name-text { font-weight: 600; font-size: 14px; }
+        .session-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: blink 1.4s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+        .session-right { text-align: right; }
+        .session-time-local { font-size: 14px; font-weight: 600; }
+        .session-date-local { font-size: 11px; color: var(--muted); }
+
+        /* ── Session Results (collapsible) ── */
+        details.session-details { border-top: 1px solid var(--border); }
+        details.session-details summary { display: flex; justify-content: space-between; align-items: center; padding: 11px 20px; cursor: pointer; list-style: none; transition: background 0.1s; }
+        details.session-details summary:hover { background: rgba(255,255,255,0.02); }
+        details.session-details summary::-webkit-details-marker { display: none; }
+        .summary-left { display: flex; align-items: center; gap: 10px; }
+        .summary-toggle { font-size: 11px; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 5px; }
+        details[open] .toggle-arrow { transform: rotate(180deg); }
+        .toggle-arrow { transition: transform 0.2s; display: inline-block; }
+        .result-list { padding: 0 20px 12px; }
+
+        /* ── Result Rows ── */
+        .result-row { display: grid; grid-template-columns: 28px 10px 1fr auto auto; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .result-row:last-child { border-bottom: none; }
+        .result-row.retired { opacity: 0.7; }
+        .res-pos { font-size: 13px; font-weight: 800; color: var(--muted); }
+        .res-pos.p1 { color: var(--gold); }
+        .res-pos.p2 { color: var(--silver); }
+        .res-pos.p3 { color: var(--bronze); }
+        .res-name { font-weight: 600; }
+        .res-time { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+        .res-pts { font-size: 11px; font-weight: 700; color: var(--green); text-align: right; min-width: 36px; }
+        .ret-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(225,6,0,0.15); color: var(--red); white-space: nowrap; }
+        .q-stage { font-size: 10px; color: var(--muted); padding: 1px 5px; border: 1px solid var(--border); border-radius: 3px; }
+
+        /* ── Between-races hero ── */
+        #hero-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 800px) { #hero-row { grid-template-columns: 1fr; } }
+        .next-race-card { background: linear-gradient(135deg, #130a0a 0%, var(--card) 70%); border: 1px solid #2e1212; border-radius: 12px; padding: 26px; position: relative; overflow: hidden; }
+        .next-race-card::after { content:''; position:absolute; top:0;left:0;right:0; height:3px; background:linear-gradient(90deg,var(--red),#ff4422); }
+        .race-eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--red); margin-bottom: 8px; }
+        .race-name-hero { font-size: 28px; font-weight: 800; line-height: 1.05; margin-bottom: 5px; }
+        .race-circuit { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
+        .countdown { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+        .cd-unit { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 12px 6px; text-align: center; }
+        .cd-num { font-size: 30px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+        .cd-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-top: 4px; }
+        .race-meta { font-size: 12px; color: var(--muted); }
+        .race-meta strong { color: var(--text); }
+        .sessions-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+
+        /* ── News grid (shared: weekend + between-races) ── */
+        .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+        .news-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; text-decoration: none; color: var(--text); transition: border-color 0.15s; display: flex; flex-direction: column; }
+        .news-card:hover { border-color: #3a3a3a; }
+        .news-card-img { width: 100%; height: 130px; object-fit: cover; background: var(--card2); display: block; }
+        .news-card-body { padding: 12px 14px 14px; flex: 1; }
+        .news-card-title { font-size: 13px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .news-card-meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+        /* ── Glance section ── */
+        .glance-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        @media (max-width: 900px) { .glance-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 600px) { .glance-grid { grid-template-columns: 1fr; } }
+        .glance-card { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+        .glance-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .glance-link { font-size: 11px; font-weight: 600; color: var(--red); text-decoration: none; letter-spacing: 0; text-transform: none; }
+        .glance-link:hover { text-decoration: underline; }
+        .mini-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+        .mini-row:last-child { border-bottom: none; }
+        .mini-pos { font-size: 14px; font-weight: 800; color: var(--muted); width: 22px; }
+        .mini-pos.p1 { color: var(--gold); }
+        .mini-pos.p2 { color: var(--silver); }
+        .mini-pos.p3 { color: var(--bronze); }
+        .mini-name { font-weight: 600; font-size: 13px; flex: 1; padding: 0 8px; }
+        .mini-pts { font-size: 13px; font-weight: 800; color: var(--muted); }
+        .team-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-lbl { font-size: 12px; color: var(--muted); }
+        .stat-val { font-size: 13px; font-weight: 700; }
+
+        /* ── Calendar ── */
+        .cal-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+        .race-chip { flex: 0 0 auto; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 120px; cursor: default; }
+        .race-chip.past { opacity: 0.35; }
+        .race-chip.is-next { border-color: var(--red); background: linear-gradient(135deg, #170a0a, var(--card)); }
+        .race-chip.is-weekend { border-color: var(--green); }
+        .chip-flag { font-size: 18px; margin-bottom: 6px; }
+        .chip-round { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .chip-name { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; margin-top: 2px; }
+        .chip-date { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+        /* ── Calendar past-race results ── */
+        .race-chip.clickable { cursor: pointer; }
+        .race-chip.past.clickable:hover { opacity: 0.6; border-color: #3a3a3a; }
+        .race-chip.past.selected { opacity: 1; border-color: var(--red); background: linear-gradient(135deg, #170a0a, var(--card)); }
+        .cal-results-panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; margin-top: 12px; animation: fadeIn 0.15s ease; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+        .cal-rp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+        .cal-rp-title { font-size: 15px; font-weight: 800; }
+        .cal-rp-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+        .cal-rp-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; line-height: 1; padding: 0 0 0 16px; flex-shrink: 0; }
+        .cal-rp-close:hover { color: var(--text); }
+        .cal-rp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+        @media (max-width: 700px) { .cal-rp-grid { grid-template-columns: 1fr; } }
+
+        /* ── Skeleton / Error ── */
+        .skel { background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%); background-size: 300% 100%; animation: shimmer 1.6s infinite; border-radius: 6px; }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        .error-msg { color: var(--muted); text-align: center; padding: 40px 20px; }
+        .error-msg h3 { color: var(--text); margin-bottom: 10px; font-size: 18px; }
+        .error-msg code { display: block; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin: 12px auto; max-width: 360px; font-size: 13px; text-align: left; color: var(--green); }
+
+        /* ── YouTube Highlights ── */
+        .highlights-section { padding: 12px 20px 16px; border-top: 1px solid var(--border); }
+        .highlights-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+        .yt-clips-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+        .yt-clip { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; transition: border-color 0.15s; flex: 0 0 210px; }
+        .yt-clip:hover { border-color: var(--red); }
+        .yt-thumb-wrap { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; }
+        .yt-thumb { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity 0.15s; }
+        .yt-clip:hover .yt-thumb { opacity: 0.8; }
+        .yt-play-btn { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+        .yt-play-icon { width: 40px; height: 40px; background: rgba(225,6,0,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 12px rgba(0,0,0,0.6); }
+        .yt-clip-label { font-size: 11px; font-weight: 600; padding: 7px 10px 8px; color: var(--text); }
+        .yt-embed-wrap { border-radius: 8px; overflow: hidden; background: #000; flex: 0 0 355px; aspect-ratio: 16/9; }
+        .yt-embed-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="f1-wordmark">F1<span> Dashboard</span></div>
+    <div class="header-season" id="season-label">Loading…</div>
+    <nav class="pill-nav">
+        <a href="f1-dashboard.html" class="pill active">Home</a>
+        <a href="f1-drivers.html" class="pill">Drivers</a>
+        <a href="f1-constructors.html" class="pill">Constructors</a>
+    </nav>
+</header>
+
+<main id="main">
+    <div id="race-section">
+        <div class="section-label">Loading…</div>
+        <div class="card"><div class="skel" style="height:180px"></div></div>
+    </div>
+    <div id="news-section"></div>
+    <div id="glance-section">
+        <div class="section-label">Season at a Glance</div>
+        <div class="glance-grid">
+            <div class="glance-card"><div class="skel" style="height:160px"></div></div>
+            <div class="glance-card"><div class="skel" style="height:160px"></div></div>
+            <div class="glance-card"><div class="skel" style="height:160px"></div></div>
+        </div>
+    </div>
+    <div id="cal-section">
+        <div class="section-label" id="cal-label">Season Calendar</div>
+        <div class="cal-scroll" id="calendar"></div>
+        <div id="cal-results"></div>
+    </div>
+</main>
+
+<script>
+// ── Constants ────────────────────────────────────────────────────────
+const API = 'https://api.jolpi.ca/ergast/f1';
+const RSS_API = 'https://api.rss2json.com/v1/api.json';
+const RSS_FEED = 'https://feeds.bbci.co.uk/sport/formula1/rss.xml';
+
+const FLAGS = {
+    'Australia':'🇦🇺','Bahrain':'🇧🇭','Saudi Arabia':'🇸🇦','Japan':'🇯🇵',
+    'China':'🇨🇳','United States':'🇺🇸','USA':'🇺🇸','Italy':'🇮🇹',
+    'Monaco':'🇲🇨','Canada':'🇨🇦','Spain':'🇪🇸','Austria':'🇦🇹',
+    'Great Britain':'🇬🇧','UK':'🇬🇧','Hungary':'🇭🇺','Belgium':'🇧🇪',
+    'Netherlands':'🇳🇱','Singapore':'🇸🇬','Azerbaijan':'🇦🇿',
+    'Mexico':'🇲🇽','Brazil':'🇧🇷','United Arab Emirates':'🇦🇪',
+    'Qatar':'🇶🇦','Abu Dhabi':'🇦🇪',
+};
+const TEAM_COLORS = {
+    red_bull:'#3671C6',ferrari:'#E8002D',mercedes:'#27F4D2',mclaren:'#FF8000',
+    aston_martin:'#229971',alpine:'#FF87BC',williams:'#64C4FF',rb:'#6692FF',
+    alphatauri:'#6692FF',haas:'#B6BABD',kick_sauber:'#52E252',sauber:'#52E252',
+    audi:'#9B3CE8',cadillac:'#CC0000',
+};
+
+// ── Utilities ────────────────────────────────────────────────────────
+const teamColor = id => TEAM_COLORS[id?.toLowerCase()] || '#777';
+const flag = c => FLAGS[c] || '🏁';
+const pad = n => String(n).padStart(2,'0');
+const shortName = n => n.replace(/ Grand Prix$/i,'').replace(/Grand Prix/i,'GP').replace(/^Formula 1 /i,'');
+
+function parseSession(date, time) {
+    if (!date) return null;
+    const dt = new Date(`${date}T${time || '12:00:00Z'}`);
+    return {
+        dt,
+        timeStr: dt.toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit'}),
+        dateStr: dt.toLocaleDateString(undefined, {weekday:'short',month:'short',day:'numeric'}),
+    };
+}
+
+function fmtDate(d) {
+    return new Date(d + 'T12:00:00').toLocaleDateString(undefined, {month:'short',day:'numeric'});
+}
+
+function timeAgo(str) {
+    const ms = Date.now() - new Date(str).getTime();
+    if (ms < 0) return 'just now';
+    const m = Math.floor(ms/60000);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m/60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h/24)}d ago`;
+}
+
+// ── Weekend detection ────────────────────────────────────────────────
+function findWeekendRace(races, now) {
+    for (const race of races) {
+        // Fall back to 2 days before race if FP1 data missing
+        const fp1Date = race.FirstPractice?.date || (() => {
+            const d = new Date(race.date + 'T12:00:00Z');
+            d.setDate(d.getDate() - 2);
+            return d.toISOString().slice(0,10);
+        })();
+        const fp1 = parseSession(fp1Date, race.FirstPractice?.time || '09:00:00Z');
+        const raceDt = parseSession(race.date, race.time);
+        if (!fp1 || !raceDt) continue;
+        const end = new Date(raceDt.dt.getTime() + 48 * 3600000); // +48h
+        if (now >= fp1.dt && now <= end) return race;
+    }
+    return null;
+}
+
+function getPhase(race, now) {
+    const raceDt = parseSession(race.date, race.time);
+    return now >= raceDt.dt ? 'post-race' : 'active';
+}
+
+// ── Fetch helpers ────────────────────────────────────────────────────
+async function fetchRoundResults(season, round) {
+    const safe = async url => {
+        try { const r = await fetch(url); return r.ok ? r.json() : null; }
+        catch { return null; }
+    };
+    const [qData, rData, sData] = await Promise.all([
+        safe(`${API}/${season}/${round}/qualifying.json`),
+        safe(`${API}/${season}/${round}/results.json`),
+        safe(`${API}/${season}/${round}/sprint.json`),
+    ]);
+    return {
+        qualifying: qData?.MRData?.RaceTable?.Races?.[0]?.QualifyingResults || [],
+        race:       rData?.MRData?.RaceTable?.Races?.[0]?.Results || [],
+        sprint:     sData?.MRData?.RaceTable?.Races?.[0]?.SprintResults || [],
+    };
+}
+
+async function fetchNews() {
+    try {
+        const url = `${RSS_API}?rss_url=${encodeURIComponent(RSS_FEED)}`;
+        const r = await fetch(url);
+        const d = await r.json();
+        return d.items || [];
+    } catch { return []; }
+}
+
+// ── YouTube Highlights ────────────────────────────────────────────────
+const F1_YT_CHANNEL = 'UCB_qr75-ydFVKSF9Dmo6izg';
+const YT_CACHE_TTL  = 6 * 60 * 60 * 1000; // 6 h
+
+// Title patterns: "Race Highlights | 2026 Canadian Grand Prix"
+//                 "Qualifying Highlights | 2026 Canadian Grand Prix"
+//                 "Sprint Qualifying Highlights | 2026 Canadian Grand Prix"
+//                 "Sprint Highlights | 2026 Canadian Grand Prix"
+const SESSION_PRIORITY = ['Race', 'Qualifying', 'Sprint', 'Sprint Qualifying'];
+
+function ytVideoId(link) {
+    try { return new URL(link).searchParams.get('v'); } catch { return null; }
+}
+
+function classifyClip(title) {
+    const t = title.toLowerCase();
+    if (t.includes('sprint qualifying')) return 'Sprint Qualifying';
+    if (t.startsWith('sprint'))          return 'Sprint';
+    if (t.includes('qualifying'))        return 'Qualifying';
+    if (t.includes('race'))              return 'Race';
+    return 'Highlights';
+}
+
+async function fetchF1Highlights(raceName, season, round) {
+    const cacheKey = `f1_yt_${season}_${round}`;
+    try {
+        const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+        if (cached && Date.now() - cached.ts < YT_CACHE_TTL) return cached.data;
+    } catch {}
+
+    try {
+        const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${F1_YT_CHANNEL}`;
+        const apiUrl  = `${RSS_API}?rss_url=${encodeURIComponent(feedUrl)}&count=20`;
+        const resp    = await fetch(apiUrl);
+        const json    = await resp.json();
+        const items   = json.items || [];
+
+        // Match keyword: strip " Grand Prix" → "canadian" etc.
+        const keyword = raceName.replace(/ Grand Prix$/i, '').trim().toLowerCase();
+
+        const clips = items
+            .filter(item => {
+                const t = item.title.toLowerCase();
+                return t.includes('highlights') && t.includes(keyword);
+            })
+            .map(item => ({
+                title:    item.title,
+                videoId:  ytVideoId(item.link),
+                session:  classifyClip(item.title),
+                pubDate:  item.pubDate,
+            }))
+            .filter(c => c.videoId)
+            .sort((a, b) => {
+                const ai = SESSION_PRIORITY.indexOf(a.session);
+                const bi = SESSION_PRIORITY.indexOf(b.session);
+                return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+            });
+
+        localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: clips }));
+        return clips;
+    } catch { return []; }
+}
+
+function playHighlight(el, videoId) {
+    el.outerHTML = `<div class="yt-embed-wrap">
+        <iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowfullscreen></iframe>
+    </div>`;
+}
+
+function injectHighlights(containerId, clips) {
+    const container = document.getElementById(containerId);
+    if (!container || !clips.length) return;
+
+    const cards = clips.map(clip => `
+        <div class="yt-clip" onclick="playHighlight(this,'${clip.videoId}')">
+            <div class="yt-thumb-wrap">
+                <img class="yt-thumb" src="https://img.youtube.com/vi/${clip.videoId}/mqdefault.jpg" alt="${clip.session}" loading="lazy">
+                <div class="yt-play-btn">
+                    <div class="yt-play-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="yt-clip-label">${clip.session} Highlights</div>
+        </div>`).join('');
+
+    container.innerHTML = `
+        <div class="highlights-section">
+            <div class="highlights-header">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--red)"><path d="M19.6 3.2C16 2.9 8 2.9 4.4 3.2.5 3.5.1 5.8 0 12c.1 6.2.5 8.5 4.4 8.8 3.6.3 11.6.3 15.2 0 3.9-.3 4.3-2.6 4.4-8.8-.1-6.2-.5-8.5-4.4-8.8zM9.6 15.6V8.4L16 12l-6.4 3.6z"/></svg>
+                Highlights
+            </div>
+            <div class="yt-clips-row">${cards}</div>
+        </div>`;
+}
+
+async function loadHighlightsInto(containerId, raceName, season, round) {
+    const clips = await fetchF1Highlights(raceName, season, round);
+    injectHighlights(containerId, clips);
+}
+
+// ── Countdown ────────────────────────────────────────────────────────
+let cdInterval;
+function startCountdown(targetDt) {
+    clearInterval(cdInterval);
+    function tick() {
+        const el = document.getElementById('countdown');
+        if (!el) { clearInterval(cdInterval); return; }
+        const diff = targetDt - Date.now();
+        if (diff <= 0) {
+            el.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--green);font-weight:800;font-size:16px;padding:10px">RACE WEEKEND 🏎️</div>`;
+            clearInterval(cdInterval); return;
+        }
+        const d=Math.floor(diff/86400000), h=Math.floor((diff%86400000)/3600000),
+              m=Math.floor((diff%3600000)/60000), s=Math.floor((diff%60000)/1000);
+        el.innerHTML = `
+            <div class="cd-unit"><div class="cd-num">${d}</div><div class="cd-label">Days</div></div>
+            <div class="cd-unit"><div class="cd-num">${pad(h)}</div><div class="cd-label">Hours</div></div>
+            <div class="cd-unit"><div class="cd-num">${pad(m)}</div><div class="cd-label">Mins</div></div>
+            <div class="cd-unit"><div class="cd-num">${pad(s)}</div><div class="cd-label">Secs</div></div>`;
+    }
+    tick(); cdInterval = setInterval(tick, 1000);
+}
+
+// ── Session Countdown (weekend mode) ─────────────────────────────────
+let sessionCdInterval;
+function startSessionCountdown(targetDt, sessionName) {
+    clearInterval(sessionCdInterval);
+    function tick() {
+        const el = document.getElementById('session-countdown');
+        if (!el) { clearInterval(sessionCdInterval); return; }
+        const diff = targetDt - Date.now();
+        if (diff <= 0) {
+            el.textContent = '00:00:00';
+            const lbl = document.getElementById('session-countdown-label');
+            if (lbl) lbl.textContent = `Now · ${sessionName}`;
+            clearInterval(sessionCdInterval); return;
+        }
+        // Fold days into hours so display stays HH:MM:SS
+        const totalH = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        el.textContent = `${pad(totalH)}:${pad(m)}:${pad(s)}`;
+    }
+    tick(); sessionCdInterval = setInterval(tick, 1000);
+}
+
+// ── Render: Between-races ────────────────────────────────────────────
+function renderBetweenRaces(race, totalRounds, now) {
+    if (!race) {
+        document.getElementById('race-section').innerHTML =
+            `<div class="section-label">Season</div><div class="card" style="text-align:center;padding:40px;color:var(--muted)"><h3 style="color:var(--text);margin-bottom:8px">Season Complete 🏆</h3><p>Check back for the next season.</p></div>`;
+        return;
+    }
+    const loc = race.Circuit?.Location;
+    const raceDt = parseSession(race.date, race.time);
+    const weeksAway = Math.ceil((raceDt.dt - now) / (7*86400000));
+    const weekendLabel = weeksAway <= 1
+        ? '<strong style="color:var(--green)">This weekend!</strong>'
+        : `<strong>${weeksAway}</strong> weekend${weeksAway!==1?'s':''} away`;
+
+    const sessionDefs = buildSessionDefs(race);
+    const sessionRows = sessionDefs.map((s,i) => {
+        const t = parseSession(s.date, s.time);
+        if (!t) return '';
+        const past = t.dt < now;
+        const isNext = !past && sessionDefs.slice(0,i).every(ps => {
+            const pt = parseSession(ps.date, ps.time); return pt && pt.dt < now;
+        });
+        return `<div class="session-row ${past?'past':''}">
+            <div class="session-left">
+                <span class="session-key key-${s.key.toLowerCase()}">${s.key}</span>
+                <span class="session-name-text">${s.name}</span>
+                ${isNext?'<span class="session-live-dot"></span>':''}
+            </div>
+            <div class="session-right">
+                <div class="session-time-local">${t.timeStr}</div>
+                <div class="session-date-local">${t.dateStr}</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('race-section').innerHTML = `
+        <div class="section-label">Next Race</div>
+        <div id="hero-row">
+            <div class="next-race-card">
+                <div class="race-eyebrow">${flag(loc?.country)} Round ${race.round} / ${totalRounds}</div>
+                <div class="race-name-hero">${race.raceName}</div>
+                <div class="race-circuit">${race.Circuit?.circuitName} · ${loc?.locality}, ${loc?.country}</div>
+                <div class="countdown" id="countdown"></div>
+                <div class="race-meta">${weekendLabel} · Race: ${raceDt.dateStr} at ${raceDt.timeStr}</div>
+            </div>
+            <div class="sessions-card">
+                <div class="section-label" style="margin-bottom:4px">Weekend Schedule</div>
+                <div class="tz-note">All times — ${Intl.DateTimeFormat().resolvedOptions().timeZone}</div>
+                ${sessionRows}
+            </div>
+        </div>`;
+    startCountdown(raceDt.dt);
+}
+
+// ── Render: Weekend Hub ──────────────────────────────────────────────
+function buildSessionDefs(race) {
+    return [
+        race.FirstPractice   && {key:'FP1', name:'Practice 1',        ...race.FirstPractice},
+        race.SecondPractice  && {key:'FP2', name:'Practice 2',        ...race.SecondPractice},
+        race.SprintQualifying && {key:'SQ', name:'Sprint Qualifying', ...race.SprintQualifying},
+        race.Sprint          ? {key:'SPR', name:'Sprint Race',        ...race.Sprint}
+                             : race.ThirdPractice && {key:'FP3', name:'Practice 3', ...race.ThirdPractice},
+        race.Qualifying      && {key:'QUAL', name:'Qualifying',       ...race.Qualifying},
+        {key:'RACE', name:'Race', date:race.date, time:race.time},
+    ].filter(Boolean);
+}
+
+function renderQualResults(quals) {
+    if (!quals.length) return '<div style="padding:12px 0;color:var(--muted);font-size:13px">Results not yet available</div>';
+
+    const cutoffDivider = label => `
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0 2px;margin-top:2px">
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+            <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--muted);white-space:nowrap">${label}</span>
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>`;
+
+    let html = '';
+    let prevGroup = 'q3';
+
+    for (const q of quals) {
+        const p  = parseInt(q.position);
+        const pc = p===1?'p1':p===2?'p2':p===3?'p3':'';
+        const color = teamColor(q.Constructor?.constructorId);
+        const best  = q.Q3 || q.Q2 || q.Q1 || '—';
+        const group = q.Q3 ? 'q3' : q.Q2 ? 'q2' : 'q1';
+
+        // Insert a divider exactly once at each session boundary
+        if (group !== prevGroup) {
+            html += cutoffDivider(group === 'q2' ? 'Eliminated after Q2' : 'Eliminated after Q1');
+            prevGroup = group;
+        }
+
+        html += `<div class="result-row">
+            <span class="res-pos ${pc}">${q.position}</span>
+            <span class="team-dot" style="background:${color}"></span>
+            <span class="res-name">${q.Driver.givenName[0]}. ${q.Driver.familyName}</span>
+            <span class="res-time">${best}</span>
+            <span></span>
+        </div>`;
+    }
+    return html;
+}
+
+function renderRaceResults(raceResults) {
+    if (!raceResults.length) return '<div style="padding:12px 0;color:var(--muted);font-size:13px">Results not yet available</div>';
+    const header = `<div style="display:flex;justify-content:flex-end;gap:36px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:2px">
+        <span>Time / Gap</span><span style="min-width:36px;text-align:right">Pts</span>
+    </div>`;
+    return header + raceResults.map(r => {
+        const p = parseInt(r.position);
+        const pc = p===1?'p1':p===2?'p2':p===3?'p3':'';
+        const color = teamColor(r.Constructor?.constructorId);
+        // positionText 'R'=retired 'D'=DSQ 'E'=excluded 'W'=withdrawn; fallback covers "Lapped", "+N Laps" etc.
+        const isRetired = r.positionText
+            ? ['R','D','E','W'].includes(r.positionText)
+            : !/^(Finished|\+|Lapped)/i.test(r.status);
+        const gap = p===1 ? (r.Time?.time||r.status) : r.Time?.time ? (r.Time.time.startsWith('+') ? r.Time.time : `+${r.Time.time}`) : r.status;
+        const ptsLabel = parseFloat(r.points)>0 ? `+${r.points}` : '';
+        return `<div class="result-row ${isRetired?'retired':''}">
+            <span class="res-pos ${pc}">${isRetired?'DNF':r.position}</span>
+            <span class="team-dot" style="background:${color}"></span>
+            <span class="res-name">${r.Driver.givenName[0]}. ${r.Driver.familyName}</span>
+            <span class="res-time">${isRetired?`<span class="ret-badge">${r.status}</span>`:gap}</span>
+            <span class="res-pts">${ptsLabel}</span>
+        </div>`;
+    }).join('');
+}
+
+function renderWeekendHub(race, results, now, season) {
+    const phase = getPhase(race, now);
+    const loc = race.Circuit?.Location;
+    const raceDt = parseSession(race.date, race.time);
+    const sessionDefs = buildSessionDefs(race);
+
+    // Find next upcoming session for countdown
+    const nextSession = sessionDefs.find(s => {
+        const t = parseSession(s.date, s.time);
+        return t && t.dt > now;
+    });
+    const cdBoxHtml = nextSession ? `
+        <div class="wb-cd-box">
+            <div class="wb-cd-session" id="session-countdown-label">Next · ${nextSession.name}</div>
+            <div class="wb-cd-nums" id="session-countdown">--:--:--</div>
+            <div class="wb-cd-unit-labels"><span>Hrs</span><span>Min</span><span>Sec</span></div>
+        </div>` : '';
+
+    const phaseLabel = phase==='post-race'
+        ? '<div class="wb-phase post">Post Race</div>'
+        : `<div class="wb-phase"><span class="phase-dot"></span>Race Weekend</div>`;
+
+    // Pre-pass: find the most recent session index that has actual results
+    // (only that one auto-expands; earlier sessions collapse by default)
+    const latestResultIdx = sessionDefs.reduce((best, s, i) => {
+        const t = parseSession(s.date, s.time);
+        if (!t || t.dt >= now) return best;
+        const hasResult =
+            (s.key === 'QUAL' && results.qualifying?.length) ||
+            (s.key === 'RACE' && results.race?.length) ||
+            (s.key === 'SPR'  && results.sprint?.length);
+        return hasResult ? i : best;
+    }, -1);
+
+    const sessionHtml = sessionDefs.map((s,i) => {
+        const t = parseSession(s.date, s.time);
+        if (!t) return '';
+        const past = t.dt < now;
+        const isNext = !past && sessionDefs.slice(0,i).every(ps => {
+            const pt = parseSession(ps.date,ps.time); return pt&&pt.dt<now;
+        });
+
+        // Sessions with API results
+        let resultHtml = '';
+        if (past && s.key==='QUAL' && results.qualifying?.length)
+            resultHtml = renderQualResults(results.qualifying);
+        else if (past && s.key==='RACE' && results.race?.length)
+            resultHtml = renderRaceResults(results.race);
+        else if (past && s.key==='SPR' && results.sprint?.length)
+            resultHtml = renderRaceResults(results.sprint);
+
+        if (resultHtml || (past && (s.key==='QUAL'||s.key==='RACE'||s.key==='SPR'))) {
+            return `<details class="session-details" ${i === latestResultIdx ? 'open' : ''}>
+                <summary>
+                    <div class="summary-left">
+                        <span class="session-key key-${s.key.toLowerCase()}">${s.key}</span>
+                        <span class="session-name-text">${s.name}</span>
+                        <span style="font-size:11px;color:var(--muted);margin-left:4px">${t.dateStr}</span>
+                    </div>
+                    <div class="summary-toggle">
+                        ${past?'Results':'Upcoming'}
+                        <span class="toggle-arrow">▾</span>
+                    </div>
+                </summary>
+                <div class="result-list">${resultHtml||'<div style="padding:12px 0;color:var(--muted);font-size:13px">Results not yet available</div>'}</div>
+            </details>`;
+        }
+
+        // Plain session row (FP sessions or future sessions)
+        return `<div class="session-row ${past?'past':''}">
+            <div class="session-left">
+                <span class="session-key key-${s.key.toLowerCase()}">${s.key}</span>
+                <span class="session-name-text">${s.name}</span>
+                ${isNext?'<span class="session-live-dot"></span>':''}
+            </div>
+            <div class="session-right">
+                ${past
+                    ? `<div class="summary-toggle">Complete</div>`
+                    : `<div class="session-time-local">${t.timeStr}</div>
+                       <div class="session-date-local">${t.dateStr}</div>`}
+            </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('race-section').innerHTML = `
+        <div class="weekend-banner ${phase}">
+            <div class="wb-inner">
+                <div class="wb-left">
+                    ${phaseLabel}
+                    <div class="wb-name">${race.raceName}</div>
+                    <div class="wb-circuit">${race.Circuit?.circuitName} · ${loc?.locality}, ${loc?.country}</div>
+                    <div class="wb-meta">Round ${race.round} · Race: ${raceDt.dateStr}</div>
+                </div>
+                ${cdBoxHtml}
+            </div>
+        </div>
+        <div class="sessions-panel">
+            <div class="sessions-panel-header">
+                <div class="section-label" style="margin-bottom:4px">Sessions & Results</div>
+                <div class="tz-note">All times — ${Intl.DateTimeFormat().resolvedOptions().timeZone}</div>
+            </div>
+            ${sessionHtml}
+            <div id="yt-highlights"></div>
+        </div>`;
+
+    // Start countdown to next session
+    if (nextSession) {
+        const t = parseSession(nextSession.date, nextSession.time);
+        startSessionCountdown(t.dt, nextSession.name);
+    }
+
+    // Load highlights asynchronously (fire & forget — won't block render)
+    if (season) loadHighlightsInto('yt-highlights', race.raceName, season, race.round);
+}
+
+// ── Render: News ─────────────────────────────────────────────────────
+function renderNewsWidget(items) {
+    // Compact list (for weekend sidebar)
+    const el = document.getElementById('news-widget');
+    if (!el) return;
+    if (!items.length) {
+        el.innerHTML = `<div class="news-panel"><div class="news-panel-header"><div class="section-label" style="margin-bottom:0">F1 News</div></div><div style="padding:20px;color:var(--muted);font-size:13px">No news available</div></div>`;
+        return;
+    }
+    const rows = items.map(item => {
+        const title = item.title.replace(/&amp;/g,'&').replace(/&#039;/g,"'").replace(/&quot;/g,'"');
+        const thumb = item.thumbnail ? `<img class="news-thumb-sm" src="${item.thumbnail}" alt="" loading="lazy">` : '';
+        return `<a href="${item.link}" target="_blank" rel="noopener" class="news-list-item">
+            ${thumb}
+            <div>
+                <div class="news-title-sm">${title}</div>
+                <div class="news-meta-sm">${timeAgo(item.pubDate)}</div>
+            </div>
+        </a>`;
+    }).join('');
+    el.innerHTML = `<div class="news-panel" style="height:100%;overflow-y:auto">
+        <div class="news-panel-header"><div class="section-label" style="margin-bottom:0">F1 News</div></div>
+        ${rows}
+    </div>`;
+}
+
+function renderNewsBetween(items) {
+    const sec = document.getElementById('news-section');
+    if (!items.length) { sec.innerHTML=''; return; }
+    const cards = items.map(item => {
+        const title = item.title.replace(/&amp;/g,'&').replace(/&#039;/g,"'").replace(/&quot;/g,'"');
+        const img = item.thumbnail ? `<img class="news-card-img" src="${item.thumbnail}" alt="" loading="lazy">` : '';
+        return `<a href="${item.link}" target="_blank" rel="noopener" class="news-card">
+            ${img}
+            <div class="news-card-body">
+                <div class="news-card-title">${title}</div>
+                <div class="news-card-meta">${timeAgo(item.pubDate)}</div>
+            </div>
+        </a>`;
+    }).join('');
+    sec.innerHTML = `<div class="section-label">F1 News</div><div class="news-grid">${cards}</div>`;
+}
+
+// ── Calendar past-race click-to-expand ───────────────────────────────
+let allRaces = [], allSeason = '';
+let activeCalRound = null;
+const roundResultsCache = {};
+
+function closeCalResults() {
+    activeCalRound = null;
+    document.getElementById('cal-results').innerHTML = '';
+    document.querySelectorAll('.race-chip').forEach(c => c.classList.remove('selected'));
+}
+
+async function handleChipClick(round) {
+    // Toggle off if same chip clicked again
+    if (activeCalRound === round) { closeCalResults(); return; }
+
+    activeCalRound = round;
+    document.querySelectorAll('.race-chip').forEach(c => c.classList.remove('selected'));
+    document.querySelector(`.race-chip[data-round="${round}"]`)?.classList.add('selected');
+
+    // Show skeleton while fetching
+    document.getElementById('cal-results').innerHTML =
+        `<div class="cal-results-panel"><div class="skel" style="height:100px"></div></div>`;
+
+    if (!roundResultsCache[round]) {
+        roundResultsCache[round] = await fetchRoundResults(allSeason, round);
+    }
+    renderCalResults(round, roundResultsCache[round]);
+}
+
+function renderCalResults(round, results) {
+    const el = document.getElementById('cal-results');
+    const race = allRaces.find(r => r.round === round);
+    if (!race) { el.innerHTML = ''; return; }
+
+    const loc = race.Circuit?.Location;
+    const raceDt = parseSession(race.date, race.time);
+    const top10 = (results.race || []).slice(0, 10);
+
+    const headerHtml = `
+        <div class="cal-rp-header">
+            <div>
+                <div class="cal-rp-title">${flag(loc?.country)} ${race.raceName}</div>
+                <div class="cal-rp-sub">${loc?.locality}, ${loc?.country} · ${raceDt?.dateStr || ''}</div>
+            </div>
+            <button class="cal-rp-close" onclick="closeCalResults()">×</button>
+        </div>`;
+
+    if (!top10.length) {
+        el.innerHTML = `<div class="cal-results-panel">${headerHtml}
+            <div style="color:var(--muted);font-size:13px;padding:8px 0">Results not yet available</div>
+        </div>`;
+        setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+        return;
+    }
+
+    const winner = top10[0];
+    const winnerColor = teamColor(winner?.Constructor?.constructorId);
+
+    const makeRow = r => {
+        const p = parseInt(r.position);
+        const pc = p===1?'p1':p===2?'p2':p===3?'p3':'';
+        const color = teamColor(r.Constructor?.constructorId);
+        const isRetired = r.positionText
+            ? ['R','D','E','W'].includes(r.positionText)
+            : !/^(Finished|\+|Lapped)/i.test(r.status);
+        const gap = p===1 ? (r.Time?.time || r.status) : r.Time?.time ? (r.Time.time.startsWith('+') ? r.Time.time : `+${r.Time.time}`) : r.status;
+        const ptsLabel = parseFloat(r.points) > 0 ? `+${r.points}` : '';
+        return `<div class="result-row ${isRetired ? 'retired' : ''}">
+            <span class="res-pos ${pc}">${isRetired ? 'DNF' : r.position}</span>
+            <span class="team-dot" style="background:${color}"></span>
+            <span class="res-name">${r.Driver.givenName[0]}. ${r.Driver.familyName}</span>
+            <span class="res-time">${isRetired ? `<span class="ret-badge">${r.status}</span>` : gap}</span>
+            <span class="res-pts">${ptsLabel}</span>
+        </div>`;
+    };
+
+    const leftRows  = top10.slice(0, 5).map(makeRow).join('');
+    const rightRows = top10.slice(5, 10).map(makeRow).join('');
+
+    const sprintHtml = results.sprint?.length ? `
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:12px">
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--muted)">Sprint Winner</span>
+            &ensp;<span style="font-weight:700;color:${teamColor(results.sprint[0]?.Constructor?.constructorId)}">${results.sprint[0]?.Driver?.givenName[0]}. ${results.sprint[0]?.Driver?.familyName}</span>
+            <span style="color:var(--green);font-weight:700"> +${results.sprint[0]?.points} pts</span>
+        </div>` : '';
+
+    el.innerHTML = `<div class="cal-results-panel">
+        ${headerHtml}
+        <div style="font-size:11px;color:var(--muted);margin-bottom:14px">
+            Winner: <span style="color:${winnerColor};font-weight:700">${winner.Driver.givenName[0]}. ${winner.Driver.familyName}</span>
+            · ${winner.Constructor?.name}
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:36px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:2px">
+            <span>Time / Gap</span><span style="min-width:36px;text-align:right">Pts</span>
+        </div>
+        <div class="cal-rp-grid">
+            <div class="result-list" style="padding:0">${leftRows}</div>
+            <div class="result-list" style="padding:0">${rightRows}</div>
+        </div>
+        ${sprintHtml}
+        <div style="padding:10px 0 2px;border-top:1px solid var(--border);margin-top:10px">
+            <a href="https://www.youtube.com/@Formula1/search?query=${encodeURIComponent(`highlights ${allSeason} ${race.raceName}`)}"
+               target="_blank" rel="noopener"
+               style="font-size:12px;font-weight:600;color:var(--red);text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19.6 3.2C16 2.9 8 2.9 4.4 3.2.5 3.5.1 5.8 0 12c.1 6.2.5 8.5 4.4 8.8 3.6.3 11.6.3 15.2 0 3.9-.3 4.3-2.6 4.4-8.8-.1-6.2-.5-8.5-4.4-8.8zM9.6 15.6V8.4L16 12l-6.4 3.6z"/></svg>
+                Highlights on YouTube →
+            </a>
+        </div>
+    </div>`;
+    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+}
+
+// ── Render: Calendar ─────────────────────────────────────────────────
+function renderCalendar(races, now, season) {
+    allRaces = races; allSeason = season;
+    document.getElementById('cal-label').textContent = `${season} Season Calendar`;
+    const weekendRace = findWeekendRace(races, now);
+    const nextIdx = races.findIndex(r => parseSession(r.date, r.time)?.dt > now);
+
+    const html = races.map((r,i) => {
+        const raceDt = parseSession(r.date, r.time);
+        const isWeekend = weekendRace && r.round === weekendRace.round;
+        const past = !isWeekend && raceDt && raceDt.dt <= now;
+        const isNext = !isWeekend && i === nextIdx;
+        return `<div class="race-chip ${past?'past':''} ${isNext?'is-next':''} ${isWeekend?'is-weekend':''} ${past?'clickable':''}"
+                     id="chip-${i}" ${past?`data-round="${r.round}"`:''}>
+            <div class="chip-flag">${flag(r.Circuit?.Location?.country)}</div>
+            <div class="chip-round">R${r.round}</div>
+            <div class="chip-name">${shortName(r.raceName)}</div>
+            <div class="chip-date">${fmtDate(r.date)}</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('calendar').innerHTML = html;
+
+    // Wire up click handlers — past chips expand results, all others dismiss
+    document.querySelectorAll('.race-chip.clickable').forEach(chip => {
+        chip.addEventListener('click', () => handleChipClick(chip.dataset.round));
+    });
+    document.querySelectorAll('.race-chip:not(.clickable)').forEach(chip => {
+        chip.addEventListener('click', closeCalResults);
+    });
+    const scrollIdx = weekendRace ? races.findIndex(r=>r.round===weekendRace.round) : nextIdx;
+    if (scrollIdx >= 0) {
+        setTimeout(() => {
+            const container = document.getElementById('calendar');
+            const chip = document.getElementById(`chip-${scrollIdx}`);
+            if (chip && container) {
+                // Scroll only the horizontal strip — never the page
+                container.scrollLeft = chip.offsetLeft - (container.offsetWidth / 2) + (chip.offsetWidth / 2);
+            }
+        }, 150);
+    }
+}
+
+// ── Render: Glance Section ───────────────────────────────────────────
+function renderGlanceSection(drivers, cons, races, completedCount) {
+    const racesLeft = races.length - completedCount;
+    const maxPtsLeft = racesLeft * 26;
+    const leaderPts = parseFloat(drivers[0]?.points || 0);
+    const p2gap = leaderPts - parseFloat(drivers[1]?.points || 0);
+    const conLeader = cons[0];
+
+    const snapshotHtml = `
+        <div class="stat-row"><span class="stat-lbl">Driver leader</span><span class="stat-val">${drivers[0]?.Driver?.familyName||'—'} · ${drivers[0]?.points||0} pts</span></div>
+        <div class="stat-row"><span class="stat-lbl">P1 → P2 gap</span><span class="stat-val">${p2gap} pts</span></div>
+        <div class="stat-row"><span class="stat-lbl">Constructor leader</span><span class="stat-val">${conLeader?.Constructor?.name||'—'}</span></div>
+        <div class="stat-row"><span class="stat-lbl">Races done / total</span><span class="stat-val">${completedCount} / ${races.length}</span></div>
+        <div class="stat-row"><span class="stat-lbl">Max pts remaining</span><span class="stat-val">${maxPtsLeft}</span></div>`;
+
+    const driverRows = drivers.slice(0,3).map(d => {
+        const p = parseInt(d.position);
+        const color = teamColor(d.Constructors?.[0]?.constructorId);
+        return `<div class="mini-row">
+            <span class="mini-pos ${p===1?'p1':p===2?'p2':'p3'}">${p}</span>
+            <span class="team-dot" style="background:${color}"></span>
+            <span class="mini-name">${d.Driver.givenName[0]}. ${d.Driver.familyName}</span>
+            <span class="mini-pts">${d.points}</span>
+        </div>`;
+    }).join('');
+
+    const conRows = cons.slice(0,3).map(c => {
+        const p = parseInt(c.position);
+        const color = teamColor(c.Constructor?.constructorId);
+        return `<div class="mini-row">
+            <span class="mini-pos ${p===1?'p1':p===2?'p2':'p3'}">${p}</span>
+            <span class="team-dot" style="background:${color}"></span>
+            <span class="mini-name">${c.Constructor?.name}</span>
+            <span class="mini-pts">${c.points}</span>
+        </div>`;
+    }).join('');
+
+    document.getElementById('glance-section').innerHTML = `
+        <div class="section-label">Season at a Glance</div>
+        <div class="glance-grid">
+            <div class="glance-card">
+                <div class="glance-header">Season Snapshot</div>
+                ${snapshotHtml}
+            </div>
+            <div class="glance-card">
+                <div class="glance-header">Drivers <a href="f1-drivers.html" class="glance-link">Full standings →</a></div>
+                ${driverRows}
+            </div>
+            <div class="glance-card">
+                <div class="glance-header">Constructors <a href="f1-constructors.html" class="glance-link">Full standings →</a></div>
+                ${conRows}
+            </div>
+        </div>`;
+}
+
+// ── Mock Data (?mock=qual) ────────────────────────────────────────────
+// Access via: http://localhost:4444/f1-dashboard.html?mock=qual
+const MOCK_RACE = {
+    round:'8', raceName:'Monaco Grand Prix',
+    Circuit:{ circuitName:'Circuit de Monaco', Location:{ locality:'Monte-Carlo', country:'Monaco' } },
+    date:'2026-05-24', time:'13:00:00Z',
+    FirstPractice:  { date:'2026-05-21', time:'11:30:00Z' },
+    SecondPractice: { date:'2026-05-21', time:'15:00:00Z' },
+    ThirdPractice:  { date:'2026-05-22', time:'10:00:00Z' },
+    Qualifying:     { date:'2026-05-22', time:'14:00:00Z' },
+    // No Sprint — regular Monaco weekend
+};
+const MOCK_NOW = new Date('2026-05-22T17:30:00Z'); // Saturday evening · qualifying done, race Sunday
+const MOCK_QUAL = [
+    {position:'1',  Driver:{givenName:'Charles',   familyName:'Leclerc'},    Constructor:{constructorId:'ferrari'},      Q1:'1:10.234', Q2:'1:09.678', Q3:'1:08.946'},
+    {position:'2',  Driver:{givenName:'Oscar',     familyName:'Piastri'},    Constructor:{constructorId:'mclaren'},      Q1:'1:10.456', Q2:'1:09.812', Q3:'1:09.112'},
+    {position:'3',  Driver:{givenName:'Lando',     familyName:'Norris'},     Constructor:{constructorId:'mclaren'},      Q1:'1:10.512', Q2:'1:09.934', Q3:'1:09.234'},
+    {position:'4',  Driver:{givenName:'Lewis',     familyName:'Hamilton'},   Constructor:{constructorId:'ferrari'},      Q1:'1:10.389', Q2:'1:09.756', Q3:'1:09.345'},
+    {position:'5',  Driver:{givenName:'George',    familyName:'Russell'},    Constructor:{constructorId:'mercedes'},     Q1:'1:10.623', Q2:'1:09.890', Q3:'1:09.478'},
+    {position:'6',  Driver:{givenName:'Max',       familyName:'Verstappen'}, Constructor:{constructorId:'red_bull'},     Q1:'1:10.701', Q2:'1:09.945', Q3:'1:09.589'},
+    {position:'7',  Driver:{givenName:'Kimi',      familyName:'Antonelli'},  Constructor:{constructorId:'mercedes'},     Q1:'1:10.823', Q2:'1:10.067', Q3:'1:09.701'},
+    {position:'8',  Driver:{givenName:'Fernando',  familyName:'Alonso'},     Constructor:{constructorId:'aston_martin'}, Q1:'1:10.912', Q2:'1:10.134', Q3:'1:09.834'},
+    {position:'9',  Driver:{givenName:'Carlos',    familyName:'Sainz'},      Constructor:{constructorId:'williams'},     Q1:'1:11.012', Q2:'1:10.212', Q3:'1:09.956'},
+    {position:'10', Driver:{givenName:'Nico',      familyName:'Hulkenberg'}, Constructor:{constructorId:'audi'},         Q1:'1:11.089', Q2:'1:10.278', Q3:'1:10.067'},
+    {position:'11', Driver:{givenName:'Liam',      familyName:'Lawson'},     Constructor:{constructorId:'red_bull'},     Q1:'1:11.156', Q2:'1:10.389'},
+    {position:'12', Driver:{givenName:'Yuki',      familyName:'Tsunoda'},    Constructor:{constructorId:'rb'},           Q1:'1:11.234', Q2:'1:10.445'},
+    {position:'13', Driver:{givenName:'Lance',     familyName:'Stroll'},     Constructor:{constructorId:'aston_martin'}, Q1:'1:11.312', Q2:'1:10.512'},
+    {position:'14', Driver:{givenName:'Isack',     familyName:'Hadjar'},     Constructor:{constructorId:'rb'},           Q1:'1:11.389', Q2:'1:10.601'},
+    {position:'15', Driver:{givenName:'Oliver',    familyName:'Bearman'},    Constructor:{constructorId:'haas'},         Q1:'1:11.456', Q2:'1:10.689'},
+    {position:'16', Driver:{givenName:'Alexander', familyName:'Albon'},      Constructor:{constructorId:'williams'},     Q1:'1:11.534'},
+    {position:'17', Driver:{givenName:'Esteban',   familyName:'Ocon'},       Constructor:{constructorId:'haas'},         Q1:'1:11.612'},
+    {position:'18', Driver:{givenName:'Gabriel',   familyName:'Bortoleto'},  Constructor:{constructorId:'audi'},         Q1:'1:11.701'},
+    {position:'19', Driver:{givenName:'Pierre',    familyName:'Gasly'},      Constructor:{constructorId:'alpine'},       Q1:'1:11.789'},
+    {position:'20', Driver:{givenName:'Jack',      familyName:'Doohan'},     Constructor:{constructorId:'alpine'},       Q1:'1:11.867'},
+];
+
+// ── Main ─────────────────────────────────────────────────────────────
+async function init() {
+    try {
+        const mockParam = new URLSearchParams(location.search).get('mock');
+
+        const [racesRes, driverRes, conRes] = await Promise.all([
+            fetch(`${API}/current/races.json?limit=100`),
+            fetch(`${API}/current/driverstandings.json`),
+            fetch(`${API}/current/constructorstandings.json`),
+        ]);
+        const [racesData, driverData, conData] = await Promise.all([
+            racesRes.json(), driverRes.json(), conRes.json()
+        ]);
+
+        const races   = racesData.MRData.RaceTable.Races;
+        const season  = racesData.MRData.RaceTable.season;
+        const drivers = driverData.MRData.StandingsTable.StandingsLists[0]?.DriverStandings || [];
+        const cons    = conData.MRData.StandingsTable.StandingsLists[0]?.ConstructorStandings || [];
+        const now     = new Date();
+        const completedCount = races.filter(r => parseSession(r.date, r.time)?.dt <= now).length;
+
+        document.getElementById('season-label').textContent =
+            mockParam ? `${season} Season · 🔧 Mock` : `${season} Season`;
+
+        if (mockParam === 'qual') {
+            // ── Mock: show qualifying-just-finished state ──
+            const mockResults = { qualifying: MOCK_QUAL, race: [], sprint: [] };
+            renderWeekendHub(MOCK_RACE, mockResults, MOCK_NOW, season);
+            const news = await fetchNews();
+            renderNewsBetween(news);
+        } else {
+            const weekendRace = findWeekendRace(races, now);
+            if (weekendRace) {
+                const [results, news] = await Promise.all([
+                    fetchRoundResults(season, weekendRace.round),
+                    fetchNews(),
+                ]);
+                renderWeekendHub(weekendRace, results, now, season);
+                renderNewsBetween(news);
+            } else {
+                const nextRace = races.find(r => parseSession(r.date, r.time)?.dt > now);
+                renderBetweenRaces(nextRace, races.length, now);
+                const news = await fetchNews();
+                renderNewsBetween(news);
+            }
+        }
+
+        renderGlanceSection(drivers, cons, races, completedCount);
+        renderCalendar(races, now, season);
+
+    } catch(err) {
+        console.error(err);
+        document.getElementById('main').innerHTML = `<div class="card error-msg">
+            <h3>Could not load F1 data</h3>
+            <p>Try serving locally to avoid CORS issues:</p>
+            <code>npx serve .</code>
+            <code>python -m http.server 8080</code>
+            <p style="margin-top:12px;color:#555;font-size:11px">Error: ${err.message}</p>
+        </div>`;
+    }
+}
+
+init();
+</script>
+</body>
+</html>

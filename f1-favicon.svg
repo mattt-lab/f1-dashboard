@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Background -->
+  <rect width="32" height="32" rx="6" fill="#080808"/>
+
+  <!-- Front wing (top of car, widest) -->
+  <rect x="4" y="5" width="24" height="4.5" rx="2.2" fill="#e10600"/>
+
+  <!-- Nose tip -->
+  <path d="M13.5,2 L18.5,2 L19,5.5 L13,5.5 Z" fill="#e10600"/>
+
+  <!-- Main body -->
+  <rect x="11.5" y="5" width="9" height="22" rx="4.5" fill="#e10600"/>
+
+  <!-- Front left tyre -->
+  <rect x="4.5" y="8" width="6" height="7.5" rx="3" fill="#1e1e1e"/>
+  <!-- Front right tyre -->
+  <rect x="21.5" y="8" width="6" height="7.5" rx="3" fill="#1e1e1e"/>
+
+  <!-- Rear left tyre -->
+  <rect x="4" y="17.5" width="7" height="8.5" rx="3.5" fill="#1e1e1e"/>
+  <!-- Rear right tyre -->
+  <rect x="21" y="17.5" width="7" height="8.5" rx="3.5" fill="#1e1e1e"/>
+
+  <!-- Rear wing (bottom of car) -->
+  <rect x="3" y="24" width="26" height="4.5" rx="2.2" fill="#e10600"/>
+
+  <!-- Cockpit / halo opening -->
+  <ellipse cx="16" cy="14" rx="2.8" ry="4" fill="#0a0a0a"/>
+
+  <!-- Visor (blue tint) -->
+  <ellipse cx="15.8" cy="12.2" rx="1.8" ry="2.2" fill="#1a3a70" opacity="0.85"/>
+
+  <!-- Subtle red stripe highlight on body (halo surround) -->
+  <rect x="13.5" y="17.5" width="5" height="1.5" rx="0.7" fill="#ff3322" opacity="0.5"/>
+</svg>

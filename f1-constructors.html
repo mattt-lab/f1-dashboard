@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Constructors · Championship</title>
+    <link rel="icon" href="f1-favicon.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --red:#e10600;--dark:#080808;--card:#141414;--card2:#1c1c1c;
+            --text:#f0f0f0;--muted:#6a6a6a;--green:#00cf6d;--orange:#ff8c00;
+            --border:#252525;--gold:#ffd700;--silver:#b0b0b0;--bronze:#cd7f32;
+        }
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh;font-size:14px;line-height:1.4;}
+        header{background:#0d0d0d;border-bottom:3px solid var(--red);padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;}
+        .f1-wordmark{font-size:22px;font-weight:900;font-style:italic;letter-spacing:-1px;text-transform:uppercase;color:var(--red);white-space:nowrap;}
+        .f1-wordmark span{color:var(--text);}
+        .header-season{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+        .pill-nav{margin-left:auto;display:flex;gap:3px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:20px;padding:3px;}
+        .pill{font-size:12px;font-weight:600;padding:5px 14px;border-radius:16px;text-decoration:none;color:var(--muted);transition:all 0.15s;white-space:nowrap;}
+        .pill:hover{color:var(--text);}
+        .pill.active{background:var(--red);color:#fff;}
+        main{max-width:1440px;margin:0 auto;padding:28px 20px;display:flex;flex-direction:column;gap:28px;}
+        .section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:var(--muted);margin-bottom:14px;}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px;}
+
+        /* Standings */
+        .standings-tbl{width:100%;border-collapse:collapse;}
+        .standings-tbl th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;padding-bottom:10px;border-bottom:1px solid var(--border);text-align:left;}
+        .standings-tbl th.r{text-align:right;}
+        .standings-tbl td{padding:10px 0;border-bottom:1px solid var(--border);vertical-align:middle;}
+        .standings-tbl tr:last-child td{border-bottom:none;}
+        .pos{font-size:14px;font-weight:800;color:var(--muted);padding-right:12px;}
+        .pos.p1{color:var(--gold);}.pos.p2{color:var(--silver);}.pos.p3{color:var(--bronze);}
+        .team-swatch{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;}
+        .pts-cell{text-align:right;}
+        .pts-val{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;}
+        .pts-bar-track{width:120px;height:3px;background:var(--border);border-radius:2px;margin-left:auto;margin-top:5px;}
+        .pts-bar-fill{height:100%;border-radius:2px;}
+
+        /* Analysis */
+        .analysis-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+        @media(max-width:1100px){.analysis-grid{grid-template-columns:1fr 1fr;}}
+        @media(max-width:700px){.analysis-grid{grid-template-columns:1fr;}}
+        .a-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:18px;}
+        .a-header{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:14px;}
+        .a-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+        .a-row:last-child{border-bottom:none;}
+        .a-row.eliminated{opacity:0.35;}
+        .a-name{font-weight:700;font-size:14px;}
+        .a-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+        .badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;white-space:nowrap;}
+        .badge-in{background:rgba(0,207,109,0.14);color:var(--green);}
+        .badge-out{background:rgba(80,80,80,0.15);color:#555;}
+        .pts-needed{text-align:right;}
+        .pn-val{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;}
+        .pn-sub{font-size:11px;color:var(--muted);}
+        .pn-leader{color:var(--gold);}
+        .gap-zero{color:var(--gold);}
+        .gap-tight{color:var(--green);}
+        .gap-medium{color:var(--orange);}
+        .gap-wide{color:#555;}
+
+        .skel{background:linear-gradient(90deg,var(--card) 25%,var(--card2) 50%,var(--card) 75%);background-size:300% 100%;animation:shimmer 1.6s infinite;border-radius:6px;}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .error-msg{color:var(--muted);text-align:center;padding:40px 20px;}
+        .error-msg h3{color:var(--text);margin-bottom:10px;font-size:18px;}
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="f1-wordmark">F1<span> Dashboard</span></div>
+    <div class="header-season" id="season-label">Loading…</div>
+    <nav class="pill-nav">
+        <a href="f1-dashboard.html" class="pill">Home</a>
+        <a href="f1-drivers.html" class="pill">Drivers</a>
+        <a href="f1-constructors.html" class="pill active">Constructors</a>
+    </nav>
+</header>
+
+<main>
+    <div>
+        <div class="section-label">Constructor Championship Standings</div>
+        <div class="card" id="standings-card"><div class="skel" style="height:280px"></div></div>
+    </div>
+    <div>
+        <div class="section-label">Championship Analysis</div>
+        <div class="analysis-grid" id="analysis-grid">
+            <div class="a-card"><div class="skel" style="height:200px"></div></div>
+            <div class="a-card"><div class="skel" style="height:200px"></div></div>
+            <div class="a-card"><div class="skel" style="height:200px"></div></div>
+        </div>
+    </div>
+</main>
+
+<script>
+const API = 'https://api.jolpi.ca/ergast/f1';
+const TEAM_COLORS = {
+    red_bull:'#3671C6',ferrari:'#E8002D',mercedes:'#27F4D2',mclaren:'#FF8000',
+    aston_martin:'#229971',alpine:'#FF87BC',williams:'#64C4FF',rb:'#6692FF',
+    alphatauri:'#6692FF',haas:'#B6BABD',kick_sauber:'#52E252',sauber:'#52E252',audi:'#9B3CE8',
+};
+const teamColor = id => TEAM_COLORS[id?.toLowerCase()] || '#777';
+const parseSession = (date, time) => date ? {dt: new Date(`${date}T${time||'12:00:00Z'}`)} : null;
+
+// Constructors can score up to 44 pts per race (P1 + P2 + one FL)
+const MAX_PTS_PER_RACE = 44;
+
+function renderStandings(cons) {
+    const maxPts = parseFloat(cons[0]?.points || 1);
+    const rows = cons.map(c => {
+        const pts = parseFloat(c.points);
+        const pct = ((pts/maxPts)*100).toFixed(1);
+        const p = parseInt(c.position);
+        const pc = p===1?'p1':p===2?'p2':p===3?'p3':'';
+        const color = teamColor(c.Constructor?.constructorId);
+        // Show both drivers
+        const driversText = (c.drivers||[]).map(d => `${d.givenName[0]}. ${d.familyName}`).join(' / ');
+        return `<tr>
+            <td><span class="pos ${pc}">${c.position}</span></td>
+            <td>
+                <div style="font-weight:700;font-size:14px">
+                    <span class="team-swatch" style="background:${color}"></span>${c.Constructor?.name}
+                </div>
+                ${driversText?`<div style="font-size:11px;color:var(--muted);margin-top:2px;padding-left:15px">${driversText}</div>`:''}
+            </td>
+            <td style="color:var(--muted);font-size:12px">${c.wins} win${c.wins!=='1'?'s':''}</td>
+            <td class="pts-cell">
+                <div class="pts-val">${c.points}</div>
+                <div class="pts-bar-track"><div class="pts-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+            </td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('standings-card').innerHTML = `
+        <table class="standings-tbl">
+            <thead><tr><th>#</th><th>Constructor</th><th>Wins</th><th class="r">Points</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+}
+
+function renderAnalysis(cons, racesLeft) {
+    const maxPtsLeft = racesLeft * MAX_PTS_PER_RACE;
+    const leaderPts  = parseFloat(cons[0].points);
+
+    // ── Col 1: Who Can Still Win ──
+    const col1 = cons.map(c => {
+        const pts = parseFloat(c.points);
+        const gap = leaderPts - pts;
+        const canWin = gap <= maxPtsLeft;
+        const color = teamColor(c.Constructor?.constructorId);
+        return `<div class="a-row ${canWin?'':'eliminated'}">
+            <div>
+                <div class="a-name" style="color:${color}">
+                    <span class="team-swatch" style="background:${color}"></span>${c.Constructor?.name}
+                </div>
+                <div class="a-sub">${c.points} pts${gap>0?` · -${gap}`:'&nbsp;· Leader'}</div>
+            </div>
+            <span class="badge ${canWin?'badge-in':'badge-out'}">${canWin?'In it':'Out'}</span>
+        </div>`;
+    }).join('');
+
+    // ── Col 2: Points Needed ──
+    const col2 = cons.map(c => {
+        const pts = parseFloat(c.points);
+        const gap = leaderPts - pts;
+        const canWin = gap <= maxPtsLeft;
+        const color = teamColor(c.Constructor?.constructorId);
+        let valHtml, subHtml;
+        if (gap === 0) {
+            valHtml = `<span class="pn-val pn-leader">Leader</span>`;
+            subHtml = `<div class="pn-sub">${c.points} pts</div>`;
+        } else if (canWin && racesLeft > 0) {
+            const perRace = Math.ceil(gap / racesLeft);
+            valHtml = `<span class="pn-val">+${gap}</span>`;
+            subHtml = `<div class="pn-sub">avg ${perRace} pts/race</div>`;
+        } else {
+            valHtml = `<span class="pn-val" style="color:#555">—</span>`;
+            subHtml = `<div class="pn-sub">Eliminated</div>`;
+        }
+        return `<div class="a-row ${canWin?'':'eliminated'}">
+            <div>
+                <div class="a-name" style="color:${color}">
+                    <span class="team-swatch" style="background:${color}"></span>${c.Constructor?.name}
+                </div>
+                <div class="a-sub">${racesLeft} race${racesLeft!==1?'s':''} left</div>
+            </div>
+            <div class="pts-needed">${valHtml}${subHtml}</div>
+        </div>`;
+    }).join('');
+
+    // ── Col 3: Closest Battles (sorted tightest first) ──
+    const battles3 = cons.reduce((acc, c, i, arr) => {
+        if (i === 0) return acc;
+        const prev = arr[i-1];
+        acc.push({ prev, c, gap: parseFloat(prev.points) - parseFloat(c.points) });
+        return acc;
+    }, []).sort((a, b) => a.gap - b.gap);
+    const col3 = battles3.map(({prev, c, gap}) => {
+        const hint = gap===0?'Tied':gap<=44?'One race swing':gap<=132?`~${Math.ceil(gap/44)} race wins`:'Long haul';
+        const pc = teamColor(prev.Constructor?.constructorId);
+        const cc = teamColor(c.Constructor?.constructorId);
+        return `<div class="a-row">
+            <div>
+                <div class="a-name">
+                    <span style="color:${pc}">P${prev.position} ${prev.Constructor?.name}</span>
+                    <span style="color:var(--muted)"> vs </span>
+                    <span style="color:${cc}">P${c.position} ${c.Constructor?.name}</span>
+                </div>
+                <div class="a-sub">${hint}</div>
+            </div>
+            <div style="font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;color:${gap===0?'var(--gold)':'var(--text)'}">${gap===0?'=':`${gap} pts`}</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('analysis-grid').innerHTML = `
+        <div class="a-card"><div class="a-header">Who Can Still Win</div>${col1}</div>
+        <div class="a-card"><div class="a-header">Points Needed</div>${col2}</div>
+        <div class="a-card"><div class="a-header">Closest Battles</div>${col3}</div>`;
+}
+
+async function init() {
+    try {
+        const [racesRes, conRes, driverRes] = await Promise.all([
+            fetch(`${API}/current/races.json?limit=100`),
+            fetch(`${API}/current/constructorstandings.json`),
+            fetch(`${API}/current/driverstandings.json`),
+        ]);
+        const [racesData, conData, driverData] = await Promise.all([
+            racesRes.json(), conRes.json(), driverRes.json()
+        ]);
+
+        const races   = racesData.MRData.RaceTable.Races;
+        const season  = racesData.MRData.RaceTable.season;
+        const now     = new Date();
+        const completedCount = races.filter(r => parseSession(r.date,r.time)?.dt <= now).length;
+        const racesLeft = races.length - completedCount;
+
+        // Attach driver names to each constructor
+        const drivers = driverData.MRData.StandingsTable.StandingsLists[0]?.DriverStandings || [];
+        const driversByTeam = {};
+        drivers.forEach(d => {
+            const cid = d.Constructors?.[0]?.constructorId;
+            if (cid) {
+                if (!driversByTeam[cid]) driversByTeam[cid] = [];
+                driversByTeam[cid].push(d.Driver);
+            }
+        });
+
+        const cons = (conData.MRData.StandingsTable.StandingsLists[0]?.ConstructorStandings || []).map(c => ({
+            ...c,
+            drivers: driversByTeam[c.Constructor?.constructorId] || [],
+        }));
+
+        document.getElementById('season-label').textContent = `${season} Season`;
+        renderStandings(cons);
+        if (cons.length) renderAnalysis(cons, racesLeft);
+
+    } catch(err) {
+        console.error(err);
+        document.querySelector('main').innerHTML = `<div class="card error-msg">
+            <h3>Could not load data</h3><p>Error: ${err.message}</p></div>`;
+    }
+}
+init();
+</script>
+</body>
+</html>
