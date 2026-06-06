@@ -373,27 +373,29 @@ async function fetchF1Highlights(raceName, season, round) {
     } catch {}
 
     try {
-        const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${F1_YT_CHANNEL}`;
-        const apiUrl  = `${RSS_API}?rss_url=${encodeURIComponent(feedUrl)}&count=20`;
-        const resp    = await fetch(apiUrl);
-        const json    = await resp.json();
-        const items   = json.items || [];
+        const feedUrl  = `https://www.youtube.com/feeds/videos.xml?channel_id=${F1_YT_CHANNEL}`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`;
+        const resp     = await fetch(proxyUrl);
+        const json     = await resp.json();
 
-        // Match keyword: strip " Grand Prix" → "canadian" etc.
-        const keyword = raceName.replace(/ Grand Prix$/i, '').trim().toLowerCase();
+        const xml      = new DOMParser().parseFromString(json.contents, 'text/xml');
+        const entries  = Array.from(xml.querySelectorAll('entry'));
 
-        const clips = items
+        const keyword  = raceName.replace(/ Grand Prix$/i, '').trim().toLowerCase();
+
+        const clips = entries
+            .map(entry => {
+                const title   = entry.querySelector('title')?.textContent || '';
+                const link    = entry.querySelector('link')?.getAttribute('href') || '';
+                // <id> is "yt:video:VIDEO_ID" — fall back if link parse fails
+                const idText  = entry.querySelector('id')?.textContent || '';
+                const videoId = ytVideoId(link) || idText.split(':').pop();
+                return { title, videoId, session: classifyClip(title) };
+            })
             .filter(item => {
                 const t = item.title.toLowerCase();
-                return t.includes('highlights') && t.includes(keyword);
+                return item.videoId && t.includes('highlights') && t.includes(keyword);
             })
-            .map(item => ({
-                title:    item.title,
-                videoId:  ytVideoId(item.link),
-                session:  classifyClip(item.title),
-                pubDate:  item.pubDate,
-            }))
-            .filter(c => c.videoId)
             .sort((a, b) => {
                 const ai = SESSION_PRIORITY.indexOf(a.session);
                 const bi = SESSION_PRIORITY.indexOf(b.session);
