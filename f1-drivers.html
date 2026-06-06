@@ -32,6 +32,7 @@
         .pill:hover{color:var(--text);}
         .pill.active{background:var(--red);color:#fff;}
         @media (max-width: 540px) { .header-season { display: none; } }
+        @media (max-width: 540px) { .pill { padding: 5px 10px; font-size: 11px; } .pill-nav { gap: 2px; } }
 
         /* Layout */
         main{max-width:1440px;margin:0 auto;padding:28px 20px;display:flex;flex-direction:column;gap:28px;}
@@ -96,7 +97,7 @@
     <div class="f1-wordmark">F1<span> Dashboard</span></div>
     <div class="header-season" id="season-label">Loading…</div>
     <nav class="pill-nav">
-        <a href="f1-dashboard.html" class="pill">Home</a>
+        <a href="f1-dashboard.html" class="pill">🏠</a>
         <a href="f1-drivers.html" class="pill active">Drivers</a>
         <a href="f1-constructors.html" class="pill">Constructors</a>
     </nav>
