@@ -400,7 +400,8 @@ async function fetchF1Highlights(raceName, season, round) {
                 return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
             });
 
-        localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: clips }));
+        // Only cache if we found something — don't lock out retries on empty results
+        if (clips.length) localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: clips }));
         return clips;
     } catch { return []; }
 }
