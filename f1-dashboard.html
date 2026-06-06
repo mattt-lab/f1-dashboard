@@ -239,6 +239,9 @@
         <div id="cal-results"></div>
     </div>
 </main>
+<footer style="text-align:center;padding:20px;font-size:11px;color:#2a2a2a;letter-spacing:1px">
+    build 2026-06-07
+</footer>
 
 <script>
 // ── Constants ────────────────────────────────────────────────────────
@@ -725,7 +728,14 @@ function renderWeekendHub(race, results, now, season) {
                 <div class="tz-note">All times — ${Intl.DateTimeFormat().resolvedOptions().timeZone}</div>
             </div>
             ${sessionHtml}
-            <div id="yt-highlights"></div>
+            <div style="padding:10px 20px 14px;border-top:1px solid var(--border)">
+                <a href="https://www.youtube.com/@Formula1/search?query=${encodeURIComponent(`highlights ${season} ${race.raceName}`)}"
+                   target="_blank" rel="noopener"
+                   style="font-size:12px;font-weight:600;color:var(--red);text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19.6 3.2C16 2.9 8 2.9 4.4 3.2.5 3.5.1 5.8 0 12c.1 6.2.5 8.5 4.4 8.8 3.6.3 11.6.3 15.2 0 3.9-.3 4.3-2.6 4.4-8.8-.1-6.2-.5-8.5-4.4-8.8zM9.6 15.6V8.4L16 12l-6.4 3.6z"/></svg>
+                    Highlights on YouTube →
+                </a>
+            </div>
         </div>`;
 
     // Start countdown to next session
@@ -733,9 +743,6 @@ function renderWeekendHub(race, results, now, season) {
         const t = parseSession(nextSession.date, nextSession.time);
         startSessionCountdown(t.dt, nextSession.name);
     }
-
-    // Load highlights asynchronously (fire & forget — won't block render)
-    if (season) loadHighlightsInto('yt-highlights', race.raceName, season, race.round);
 }
 
 // ── Render: News ─────────────────────────────────────────────────────
