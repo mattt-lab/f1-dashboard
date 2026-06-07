@@ -1,14 +1,53 @@
 {
-  "updated": "2026-06-07T00:00:00Z",
-  "phase": "post-race",
+  "updated": "2026-06-07T23:38:46Z",
+  "phase": "upcoming",
   "race": {
-    "name": "Monaco Grand Prix",
-    "round": "6",
+    "name": "Barcelona Grand Prix",
+    "round": "7",
     "season": "2026",
-    "date": "2026-06-07",
-    "circuit": "Circuit de Monaco"
+    "date": "2026-06-14",
+    "circuit": "Circuit de Barcelona-Catalunya"
   },
-  "summary": null,
-  "article": null,
-  "headlines": []
+  "summary": {
+    "text": "The 2026 FIA Formula One World Championship is a motor racing championship for Formula One cars and the 77th running of the Formula One World Championship. It is recognised by the Fédération Internationale de l'Automobile (FIA), the governing body of international motorsport, as the highest class of competition for open-wheel racing cars. The championship is contested over twenty-two Grands Prix held around the world. It began in March and is scheduled to end in December. Drivers and teams compete for the titles of World Drivers' Champion and World Constructors' Champion, respectively. Lando Norris is the reigning World Drivers' Champion, while McLaren-Mercedes are the reigning World Constructors' Champions.",
+    "url": "https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship",
+    "source": "Wikipedia"
+  },
+  "article": {
+    "text": "The 2026 FIA Formula One World Championship is a motor racing championship for Formula One cars and the 77th running of the Formula One World Championship. It is recognised by the Fédération Internationale de l'Automobile (FIA), the governing body of international motorsport, as the highest class of competition for open-wheel racing cars. The championship is contested over twenty-two Grands Prix held around the world. It began in March and is scheduled to end in December. Drivers and teams compete for the titles of World Drivers' Champion and World Constructors' Champion, respectively. Lando Norris is the reigning World Drivers' Champion, while McLaren-Mercedes are the reigning World Constructors' Champions.",
+    "url": "https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship",
+    "source": "Wikipedia"
+  },
+  "headlines": [
+    {
+      "title": "Antonelli-Russell contrast could hardly be more stark",
+      "url": "https://www.bbc.com/sport/formula1/articles/cd95d3vy34lo?at_medium=RSS&at_campaign=rss",
+      "description": "In Monaco, \"everything clicked\" for Kimi Antonelli but his Mercedes team-mate George Russell was \"beyond frustration\" after another race without points.",
+      "published": "Sun, 07 Jun 2026 19:20:28 GMT"
+    },
+    {
+      "title": "Monaco great for Hamilton but no fairytale for Leclerc - driver ratings",
+      "url": "https://www.bbc.com/sport/formula1/articles/cd0m51ljzj5o?at_medium=RSS&at_campaign=rss",
+      "description": "BBC Radio 5 Live F1 commentator Harry Benjamin rates how the drivers performed during the Monaco Grand Prix.",
+      "published": "Sun, 07 Jun 2026 20:39:47 GMT"
+    },
+    {
+      "title": "Hamilton 'feels like I'm reminding people who I am'",
+      "url": "https://www.bbc.com/sport/formula1/articles/c2kyjev1pvzo?at_medium=RSS&at_campaign=rss",
+      "description": "Lewis Hamilton says he \"feels like I'm having to remind people who I am\" after finishing second in the Monaco Grand Prix.",
+      "published": "Sun, 07 Jun 2026 18:11:19 GMT"
+    },
+    {
+      "title": "Antonelli wins Monaco from Hamilton after dramatic ending",
+      "url": "https://www.bbc.com/sport/formula1/articles/ckgpgp5q3z7o?at_medium=RSS&at_campaign=rss",
+      "description": "Kimi Antonelli wins the Monaco Grand Prix from Lewis Hamilton after a chaotic ending that featured two safety cars and a red flag.",
+      "published": "Sun, 07 Jun 2026 17:58:22 GMT"
+    },
+    {
+      "title": "How to follow Barcelona-Catalunya Grand Prix on the BBC",
+      "url": "https://www.bbc.com/sport/formula1/articles/cvgj5rp05p5o?at_medium=RSS&at_campaign=rss",
+      "description": "All the key BBC coverage details for the Barcelona-Catalunya Grand Prix, which takes place from 12-14June.",
+      "published": "Sun, 07 Jun 2026 18:48:41 GMT"
+    }
+  ]
 }
