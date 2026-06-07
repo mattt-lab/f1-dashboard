@@ -1184,68 +1184,15 @@ async function loadRaceNews() {
 }
 
 function renderRaceWrap(d, el) {
-    const hasSummary  = d.summary?.text;
-    const hasArticle  = d.article?.url;
-    const hasHeadlines = d.headlines?.length;
-    if (!hasSummary && !hasArticle && !hasHeadlines) return;
+    if (!d.summary?.text) return;
 
-    // ── Summary block ──
-    let summaryHtml = '';
-    if (hasSummary) {
-        // Truncate to ~400 chars at a sentence boundary
-        let text = d.summary.text;
-        if (text.length > 420) {
-            const cut = text.lastIndexOf('. ', 400);
-            text = (cut > 100 ? text.slice(0, cut + 1) : text.slice(0, 400)) + '…';
-        }
-
-        // Build links
-        const links = [];
-        if (d.summary.url) {
-            links.push(`<a href="${d.summary.url}" target="_blank" rel="noopener" class="race-wrap-link">
-                ${d.summary.source} <span>↗</span>
-            </a>`);
-        }
-        // If article is a *different* source from summary, show it too
-        if (hasArticle && d.article.source !== d.summary.source) {
-            links.push(`<a href="${d.article.url}" target="_blank" rel="noopener" class="race-wrap-link">
-                ${d.article.source} <span>↗</span>
-            </a>`);
-        }
-
-        const srcLabel   = d.summary.source || 'Summary';
-        const cardLabel  = d.phase === 'upcoming' ? 'Race Preview' : 'Race Wrap';
-        const raceName   = d.race?.name || '';
-        summaryHtml = `
-            <div class="race-wrap-head">
-                <div class="section-label" style="margin-bottom:0">${cardLabel} · ${raceName}</div>
-                <span class="race-wrap-source">${srcLabel}</span>
-            </div>
-            <p class="race-wrap-text">${text}</p>
-            ${links.length ? `<div class="race-wrap-links">${links.join('')}</div>` : ''}`;
+    let text = d.summary.text;
+    if (text.length > 420) {
+        const cut = text.lastIndexOf('. ', 400);
+        text = (cut > 100 ? text.slice(0, cut + 1) : text.slice(0, 400)) + '…';
     }
 
-    // ── BBC Headlines block ──
-    let headlinesHtml = '';
-    if (hasHeadlines) {
-        const rows = d.headlines.map(h => {
-            const age = timeAgoShort(h.published ? new Date(h.published).toISOString() : '');
-            const title = h.title.replace(/&amp;/g,'&').replace(/&#039;/g,"'").replace(/&quot;/g,'"');
-            return `<a href="${h.url}" target="_blank" rel="noopener" class="bbc-headline">
-                <span class="bbc-headline-title">${title}</span>
-                ${age ? `<span class="bbc-headline-meta">${age}</span>` : ''}
-            </a>`;
-        }).join('');
-
-        headlinesHtml = `
-            ${summaryHtml ? '<hr class="race-wrap-divider">' : ''}
-            <div class="section-label" style="margin-bottom:12px">F1 Headlines · BBC Sport</div>
-            <div class="bbc-headlines">${rows}</div>`;
-    }
-
-    if (!summaryHtml && !headlinesHtml) return;
-
-    el.innerHTML = `<div class="race-wrap-card">${summaryHtml}${headlinesHtml}</div>`;
+    el.innerHTML = `<div class="race-wrap-card"><p class="race-wrap-text" style="margin-bottom:0">${text}</p></div>`;
 }
 
 // ── Main ─────────────────────────────────────────────────────────────
