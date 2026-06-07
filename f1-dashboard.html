@@ -188,7 +188,7 @@
         @media (max-width: 700px) { .cal-rp-grid { grid-template-columns: 1fr; } }
 
         /* ── Race Wrap card ── */
-        .race-wrap-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+        .race-wrap-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 22px; margin-bottom: 16px; }
         .race-wrap-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
         .race-wrap-source { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); background: var(--card2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; white-space: nowrap; }
         .race-wrap-text { font-size: 13px; line-height: 1.65; color: #ccc; margin-bottom: 16px; }
@@ -243,7 +243,6 @@
         <div class="section-label">Loading…</div>
         <div class="card"><div class="skel" style="height:180px"></div></div>
     </div>
-    <div id="race-wrap-section"></div>
     <div id="news-section"></div>
     <div id="glance-section">
         <div class="section-label">Season at a Glance</div>
@@ -842,6 +841,7 @@ function renderWeekendHub(race, results, now, season) {
                 ${cdBoxHtml}
             </div>
         </div>
+        <div id="race-wrap-section"></div>
         <div class="sessions-panel">
             <div class="sessions-panel-header">
                 <div class="section-label" style="margin-bottom:4px">Sessions & Results</div>
