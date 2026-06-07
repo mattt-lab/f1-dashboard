@@ -715,7 +715,7 @@ function renderRaceResults(raceResults) {
         // Classified retirement: numeric position but retired — completed enough laps to be classified
         const isClassified = !isRetired && !r.Time?.time && /retired/i.test(r.status);
         const gap = isClassified
-            ? `<span class="ret-badge" style="background:rgba(255,255,255,0.07);color:var(--muted)">Ret.</span>`
+            ? `<span class="ret-badge" style="background:rgba(255,255,255,0.07);color:var(--muted)">Retired</span>`
             : p===1 ? (r.Time?.time||r.status) : r.Time?.time ? (r.Time.time.startsWith('+') ? r.Time.time : `+${r.Time.time}`) : r.status;
         const ptsLabel = parseFloat(r.points)>0 ? `+${r.points}` : '';
         return `<div class="result-row ${isRetired?'retired':''}">
@@ -962,7 +962,7 @@ function renderCalResults(round, results) {
         // Classified retirement: numeric position but retired — completed enough laps to be classified
         const isClassified = !isRetired && !r.Time?.time && /retired/i.test(r.status);
         const gap = isClassified
-            ? `<span class="ret-badge" style="background:rgba(255,255,255,0.07);color:var(--muted)">Ret.</span>`
+            ? `<span class="ret-badge" style="background:rgba(255,255,255,0.07);color:var(--muted)">Retired</span>`
             : p===1 ? (r.Time?.time || r.status) : r.Time?.time ? (r.Time.time.startsWith('+') ? r.Time.time : `+${r.Time.time}`) : r.status;
         const ptsLabel = parseFloat(r.points) > 0 ? `+${r.points}` : '';
         return `<div class="result-row ${isRetired ? 'retired' : ''}">
