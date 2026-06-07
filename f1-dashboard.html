@@ -1213,10 +1213,12 @@ function renderRaceWrap(d, el) {
             </a>`);
         }
 
-        const srcLabel = d.summary.source || 'Summary';
+        const srcLabel   = d.summary.source || 'Summary';
+        const cardLabel  = d.phase === 'upcoming' ? 'Race Preview' : 'Race Wrap';
+        const raceName   = d.race?.name || '';
         summaryHtml = `
             <div class="race-wrap-head">
-                <div class="section-label" style="margin-bottom:0">Race Wrap · ${d.race?.name || ''}</div>
+                <div class="section-label" style="margin-bottom:0">${cardLabel} · ${raceName}</div>
                 <span class="race-wrap-source">${srcLabel}</span>
             </div>
             <p class="race-wrap-text">${text}</p>
