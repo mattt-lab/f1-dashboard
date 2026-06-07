@@ -45,13 +45,13 @@
         .weekend-banner {
             border-radius: 12px; padding: 22px 26px; position: relative; overflow: hidden;
             background: linear-gradient(135deg, #130a0a 0%, var(--card) 70%);
-            border: 1px solid #2e1212; margin-bottom: 16px;
+            border: 1px solid #2e1212; margin-bottom: 16px; min-height: 180px;
         }
         .weekend-banner::after { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--red),#ff4422); }
         .weekend-banner.post-race { background: linear-gradient(135deg, #0a0a0a 0%, var(--card) 70%); border-color: var(--border); }
         .weekend-banner.post-race::after { background: var(--muted); }
-        .wb-circuit-map { position:absolute; right:14px; top:50%; transform:translateY(-50%); width:270px; height:270px; opacity:0.15; pointer-events:none; }
-        @media (max-width:600px) { .wb-circuit-map { width:180px; height:180px; right:8px; opacity:0.10; } }
+        .wb-circuit-map { position:absolute; right:20px; top:50%; transform:translateY(-50%); width:155px; height:155px; opacity:0.15; pointer-events:none; }
+        @media (max-width:600px) { .wb-circuit-map { width:110px; height:110px; right:10px; opacity:0.10; } }
         .wb-phase { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--red); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
         .wb-phase.post { color: var(--muted); }
         .phase-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: blink 1.4s infinite; }
@@ -243,7 +243,7 @@
     </div>
 </main>
 <footer style="text-align:center;padding:20px;font-size:11px;color:#2a2a2a;letter-spacing:1px">
-    build 2026-06-07 · circuit-map + ret fix
+    build 2026-06-07 · circuit-map contained
 </footer>
 
 <script>
