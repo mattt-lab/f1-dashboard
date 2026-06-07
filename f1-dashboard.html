@@ -243,7 +243,7 @@
     </div>
 </main>
 <footer style="text-align:center;padding:20px;font-size:11px;color:#2a2a2a;letter-spacing:1px">
-    build 2026-06-07 · auto-rotate circuit map
+    build 2026-06-07 · circuit css-rotate
 </footer>
 
 <script>
@@ -532,27 +532,20 @@ async function loadCircuitMap(circuitId) {
     const el = document.getElementById('circuit-map-bg');
     if (!el || !pathD) return;
 
-    // Compute bounding box and auto-rotate portrait circuits 90° CW
+    // Compute tight viewBox around the actual circuit path.
+    // For portrait circuits (taller than wide), apply a CSS rotate so the circuit
+    // sits landscape-style in the banner. The container is square so rotating the
+    // SVG 90° keeps the same footprint while flipping the orientation.
     const bb = getPathBBox(pathD);
     const pad = 18;
     const isPortrait = bb.h > bb.w * 1.1;
 
-    let viewBox, transform;
-    if (isPortrait) {
-        // After rotate(90, cx, cy): new x-span = h, new y-span = w
-        const vx = (bb.cx - bb.h / 2 - pad).toFixed(1);
-        const vy = (bb.cy - bb.w / 2 - pad).toFixed(1);
-        const vw = (bb.h + pad * 2).toFixed(1);
-        const vh = (bb.w + pad * 2).toFixed(1);
-        viewBox  = `${vx} ${vy} ${vw} ${vh}`;
-        transform = `rotate(90 ${bb.cx.toFixed(1)} ${bb.cy.toFixed(1)})`;
-    } else {
-        viewBox  = `${(bb.x - pad).toFixed(1)} ${(bb.y - pad).toFixed(1)} ${(bb.w + pad*2).toFixed(1)} ${(bb.h + pad*2).toFixed(1)}`;
-        transform = '';
-    }
+    // Tight viewBox with padding around the real circuit bounds
+    const viewBox = `${(bb.x - pad).toFixed(1)} ${(bb.y - pad).toFixed(1)} ${(bb.w + pad*2).toFixed(1)} ${(bb.h + pad*2).toFixed(1)}`;
+    const rotateCss = isPortrait ? 'transform:rotate(90deg);transform-origin:center;' : '';
 
-    el.innerHTML = `<svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-        <path d="${pathD}" transform="${transform}" style="fill:none;stroke:#fff;stroke-width:18;stroke-linejoin:round;stroke-linecap:round"/>
+    el.innerHTML = `<svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="${rotateCss}">
+        <path d="${pathD}" style="fill:none;stroke:#fff;stroke-width:18;stroke-linejoin:round;stroke-linecap:round"/>
     </svg>`;
 }
 
