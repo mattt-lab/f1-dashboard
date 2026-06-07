@@ -1184,9 +1184,9 @@ async function loadRaceNews() {
 }
 
 function renderRaceWrap(d, el) {
-    if (!d.summary?.text) return;
+    if (!d.summary) return;
 
-    let text = d.summary.text;
+    let text = d.summary;
     if (text.length > 420) {
         const cut = text.lastIndexOf('. ', 400);
         text = (cut > 100 ? text.slice(0, cut + 1) : text.slice(0, 400)) + '…';

@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-fetch_news.py  —  Fetch F1 race news and summaries for the dashboard.
+fetch_news.py  —  Fetch F1 race summary for the dashboard.
 
-Sources (in priority order):
-  1. Formula 1 official race report  (formula1.com)
-  2. Wikipedia race article extract  (en.wikipedia.org REST API)
-  3. BBC Sport F1 RSS headlines
+Source: BBC Sport F1 RSS feed.
+  - Finds the race-report headline for the current race.
+  - Fetches the full BBC article and extracts the opening paragraphs.
+  - Falls back to combining the best RSS descriptions if the article
+    fetch fails.
+  - For upcoming races, uses the Wikipedia evergreen article for
+    circuit/race background (the only time generic info is appropriate).
 
-Writes data/race-news.json which the dashboard fetches on load.
+Writes data/race-news.json — consumed by the dashboard's race wrap card.
 Run every 3 hours via GitHub Actions (.github/workflows/update-news.yml).
 """
 
@@ -15,7 +18,6 @@ import json
 import os
 import re
 import sys
-import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -24,11 +26,12 @@ from datetime import datetime, timezone
 # ── Constants ──────────────────────────────────────────────────────────────
 JOLPICA_API = "https://api.jolpi.ca/ergast/f1"
 BBC_RSS     = "http://feeds.bbci.co.uk/sport/formula1/rss.xml"
-DDG_SEARCH  = "https://html.duckduckgo.com/html/"
 OUTPUT_FILE = "data/race-news.json"
 UA          = "F1Dashboard/1.0 (+https://github.com/mattt-lab/f1-dashboard)"
+TIMEOUT     = 12  # seconds per request
 
-TIMEOUT = 12  # seconds per request
+SKIP_PHRASES = {"cookie", "subscribe", "newsletter", "sign up", "privacy",
+                "terms and conditions", "javascript", "bbc sport footer"}
 
 
 # ── HTTP helpers ───────────────────────────────────────────────────────────
@@ -74,8 +77,7 @@ def strip_tags(html):
 
 def _weekend_start(race_dict):
     """
-    Return the datetime of the earliest session in a race weekend
-    (FP1, FP2, qualifying — whichever comes first).
+    Return the datetime of the earliest session in a race weekend.
     Falls back to the race time itself if no session data is present.
     """
     race_dt_str = f"{race_dict['date']}T{race_dict.get('time', '15:00:00Z')}"
@@ -100,12 +102,12 @@ def _weekend_start(race_dict):
 
 def get_current_race():
     """
-    Returns (race_dict, phase) where phase is one of:
+    Returns (race_dict, phase):
       'post-race'  – between race weekends; show wrap of last completed race
       'upcoming'   – next race weekend has started (FP1 has begun); show preview
 
-    The switch to 'upcoming' fires when the next weekend's first on-track
-    session begins — matching the dashboard's own race-weekend detection.
+    Switches to 'upcoming' only when the next weekend's first on-track session
+    begins — matching the dashboard's own race-weekend detection logic.
     """
     data = fetch_json(f"{JOLPICA_API}/current.json?limit=100")
     if not data:
@@ -114,224 +116,179 @@ def get_current_race():
     races = data["MRData"]["RaceTable"]["Races"]
     now   = datetime.now(timezone.utc)
 
-    next_race = None   # (race_dict, race_datetime)
-    last_race = None   # most recently completed race
+    next_race = None
+    last_race = None
 
     for r in races:
         race_dt_str = f"{r['date']}T{r.get('time', '15:00:00Z')}"
         race_dt = datetime.fromisoformat(race_dt_str.replace("Z", "+00:00"))
         if race_dt > now:
-            if next_race is None:       # first future race = the next one
+            if next_race is None:
                 next_race = (r, race_dt)
         else:
-            last_race = (r, race_dt)   # keep updating; last one wins
+            last_race = (r, race_dt)
 
-    # Switch to 'upcoming' only once the next weekend's first session has started
     if next_race and _weekend_start(next_race[0]) <= now:
         return next_race[0], "upcoming"
 
-    # Between weekends — show post-race wrap for the last completed race
     if last_race:
         return last_race[0], "post-race"
 
-    # Edge case: very start of season, no completed race yet
     if next_race:
         return next_race[0], "upcoming"
 
     return None, None
 
 
-# ── Source 1: Formula 1 official article ──────────────────────────────────
+# ── BBC Sport ──────────────────────────────────────────────────────────────
 
-def _ddg_search_f1com(query, prefer_keywords):
-    """
-    Search DuckDuckGo for a formula1.com article.
-    Returns the best-matching URL or None.
-    """
-    params = urllib.parse.urlencode({"q": f"site:formula1.com {query}", "kl": "us-en"})
-    html = fetch(f"{DDG_SEARCH}?{params}", {
-        "Referer": "https://duckduckgo.com/",
-        "Accept": "text/html",
-    })
-    if not html:
-        return None
-    urls = re.findall(r'https://www\.formula1\.com/en/latest/article/[^\s"\'<>&]+', html)
-    for url in urls:
-        lower = url.lower()
-        if any(kw in lower for kw in prefer_keywords):
-            return url
-    return urls[0] if urls else None
-
-
-def find_f1com_article_url(race_name, year):
-    """Find an F1.com post-race report URL."""
-    return _ddg_search_f1com(
-        f'"{year}" "{race_name}" race result',
-        ["race-result", "race-report", "grand-prix", "wins", "victory", "secures"],
-    )
-
-
-def find_f1com_preview_url(race_name, year):
-    """Find an F1.com race preview URL."""
-    return _ddg_search_f1com(
-        f'"{year}" "{race_name}" preview',
-        ["preview", "grand-prix", "what-to", "ones-to-watch", "guide"],
-    )
-
-
-def fetch_f1com_summary(race_name, year):
-    """
-    Fetch and return the first substantive paragraphs from an F1.com race report.
-    Returns dict with 'text', 'url', 'source' or None.
-    """
-    print(f"  Searching F1.com for '{race_name} {year}'…")
-    url = find_f1com_article_url(race_name, year)
-    if not url:
-        print("  F1.com: no article URL found via search")
-        return None
-
-    print(f"  F1.com article: {url}")
-    html = fetch(url)
-    if not html:
-        return None
-
-    # Extract <p> paragraphs from the article body
-    # F1.com wraps article content in divs; we grab all <p> tags
-    paragraphs = re.findall(r"<p[^>]*>(.*?)</p>", html, re.DOTALL | re.IGNORECASE)
-    clean = []
-    for p in paragraphs:
-        text = strip_tags(p).strip()
-        # Skip short snippets, nav items, cookie notices, etc.
-        if len(text) > 80 and not any(kw in text.lower() for kw in [
-            "cookie", "subscribe", "newsletter", "sign up", "privacy",
-            "terms", "javascript", "browser"
-        ]):
-            clean.append(text)
-        if len(clean) >= 3:
-            break
-
-    if not clean:
-        print("  F1.com: could not extract article text")
-        return None
-
-    return {
-        "text": " ".join(clean),
-        "url": url,
-        "source": "Formula 1",
-    }
-
-
-def fetch_f1com_preview(race_name, year):
-    """
-    Fetch the first substantive paragraphs from an F1.com race preview article.
-    Returns dict with 'text', 'url', 'source' or None.
-    """
-    print(f"  Searching F1.com preview for '{race_name} {year}'…")
-    url = find_f1com_preview_url(race_name, year)
-    if not url:
-        print("  F1.com: no preview URL found via search")
-        return None
-
-    print(f"  F1.com preview: {url}")
-    html = fetch(url)
-    if not html:
-        return None
-
-    paragraphs = re.findall(r"<p[^>]*>(.*?)</p>", html, re.DOTALL | re.IGNORECASE)
-    clean = []
-    for p in paragraphs:
-        text = strip_tags(p).strip()
-        if len(text) > 80 and not any(kw in text.lower() for kw in [
-            "cookie", "subscribe", "newsletter", "sign up", "privacy",
-            "terms", "javascript", "browser"
-        ]):
-            clean.append(text)
-        if len(clean) >= 3:
-            break
-
-    if not clean:
-        print("  F1.com: could not extract preview text")
-        return None
-
-    return {
-        "text": " ".join(clean),
-        "url": url,
-        "source": "Formula 1",
-    }
-
-
-# ── Source 2: Wikipedia ────────────────────────────────────────────────────
-
-def _fetch_wikipedia_article(title):
-    """Internal: fetch Wikipedia REST summary for a given article title."""
-    url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(title)}"
-    print(f"  Wikipedia: {url}")
-    data = fetch_json(url)
-    if not data or "not_found" in str(data.get("type", "")):
-        return None
-    extract = data.get("extract", "").strip()
-    if not extract or len(extract) < 100:
-        return None
-    wiki_url = data.get("content_urls", {}).get("desktop", {}).get("page", "")
-    return {"text": extract, "url": wiki_url, "source": "Wikipedia"}
-
-
-def fetch_wikipedia_summary(race_name, year):
-    """
-    Post-race: fetch the year-specific Wikipedia article only (e.g. '2026_Monaco_Grand_Prix').
-    The evergreen article ('Monaco_Grand_Prix') is generic circuit history with no race results,
-    so we skip it entirely — year-specific or nothing.
-    """
-    year_title = f"{year}_{race_name.replace(' ', '_')}"
-    return _fetch_wikipedia_article(year_title)
-
-
-def fetch_wikipedia_preview(race_name, year):
-    """
-    Pre-race: try year-specific article first (may exist post-announcement),
-    then fall back to the evergreen article for circuit/race background.
-    The evergreen article is fine for previews (circuit history is relevant),
-    but not for post-race recaps (it has no results).
-    """
-    year_title = f"{year}_{race_name.replace(' ', '_')}"
-    result = _fetch_wikipedia_article(year_title)
-    if result:
-        return result
-    print("  Wikipedia: year-specific article not found, trying evergreen…")
-    return _fetch_wikipedia_article(race_name.replace(' ', '_'))
-
-
-# ── Source 3: BBC Sport F1 RSS ─────────────────────────────────────────────
-
-def fetch_bbc_headlines(n=5):
-    """
-    Fetch up to n headlines from BBC Sport F1 RSS.
-    Returns list of dicts with 'title', 'url', 'description', 'published'.
-    """
-    print(f"  Fetching BBC Sport RSS…")
+def fetch_bbc_rss():
+    """Fetch and parse the BBC Sport F1 RSS feed. Returns list of items."""
+    print("  Fetching BBC Sport F1 RSS…")
     xml_text = fetch(BBC_RSS)
     if not xml_text:
         return []
     try:
         root = ET.fromstring(xml_text)
-        headlines = []
-        for item in root.findall(".//item")[:n]:
+        items = []
+        for item in root.findall(".//item"):
             title = item.findtext("title", "").strip()
             link  = item.findtext("link",  "").strip()
             desc  = strip_tags(item.findtext("description", "")).strip()
             pub   = item.findtext("pubDate", "").strip()
             if title and link:
-                headlines.append({
-                    "title":       title,
-                    "url":         link,
-                    "description": desc[:300],
-                    "published":   pub,
-                })
-        print(f"  BBC: {len(headlines)} headlines")
-        return headlines
+                items.append({"title": title, "url": link,
+                              "description": desc, "published": pub})
+        print(f"  BBC RSS: {len(items)} items")
+        return items
     except ET.ParseError as e:
         print(f"  BBC RSS parse error: {e}", file=sys.stderr)
         return []
+
+
+def fetch_bbc_article(url, max_paragraphs=4):
+    """
+    Fetch a BBC Sport article page and return its opening paragraphs as a
+    single string. Returns None if the article can't be extracted.
+    """
+    clean_url = url.split("?")[0]   # strip RSS tracking params
+    print(f"  Fetching BBC article: {clean_url}")
+    html = fetch(clean_url)
+    if not html:
+        return None
+
+    paragraphs = re.findall(r"<p[^>]*>(.*?)</p>", html, re.DOTALL | re.IGNORECASE)
+    clean = []
+    for p in paragraphs:
+        text = strip_tags(p).strip()
+        low  = text.lower()
+        if len(text) < 60:
+            continue
+        if any(phrase in low for phrase in SKIP_PHRASES):
+            continue
+        clean.append(text)
+        if len(clean) >= max_paragraphs:
+            break
+
+    if not clean:
+        print("  BBC article: no usable paragraphs extracted")
+        return None
+
+    return " ".join(clean)
+
+
+# Keywords that identify a race-result article vs a preview/feature
+RESULT_KW  = {"wins", "victory", "takes win", "clinches", "triumphs",
+              "wins the", "takes the win", "race winner"}
+PREVIEW_KW = {"preview", "guide", "ones to watch", "what to expect",
+              "talking points", "five things", "what we learned"}
+
+
+def _score_item(item, race_name):
+    """Return (result_score, preview_score) for a BBC RSS item."""
+    combined = (item["title"] + " " + item.get("description", "")).lower()
+    race_low  = race_name.lower()
+
+    # Must mention this race (or Grand Prix generically)
+    if race_low not in combined and "grand prix" not in combined:
+        return 0, 0
+
+    r_score = sum(1 for kw in RESULT_KW  if kw in combined)
+    p_score = sum(1 for kw in PREVIEW_KW if kw in combined)
+    return r_score, p_score
+
+
+def build_post_race_summary(race_name, items):
+    """
+    Find the race-report article in the BBC RSS feed, fetch its full text,
+    and return a summary string.  Falls back to combining RSS descriptions.
+    """
+    # Sort items by result relevance
+    scored = [(item, *_score_item(item, race_name)) for item in items]
+    result_items   = sorted(
+        [(it, rs) for it, rs, _ in scored if rs > 0],
+        key=lambda x: -x[1]
+    )
+    relevant_items = [it for it, rs, ps in scored if rs > 0 or ps == 0 and
+                      (race_name.lower() in (it["title"] + it.get("description","")).lower()
+                       or "grand prix" in (it["title"] + it.get("description","")).lower())]
+
+    # 1. Try fetching the main race-report article
+    if result_items:
+        text = fetch_bbc_article(result_items[0][0]["url"])
+        if text:
+            return text
+
+    # 2. Fall back: combine the best RSS descriptions
+    print("  Falling back to combining RSS descriptions…")
+    parts = []
+    seen  = set()
+    for item, r_score, _ in scored:
+        desc = item.get("description", "").strip()
+        if desc and desc not in seen and r_score > 0:
+            parts.append(desc)
+            seen.add(desc)
+        if len(parts) >= 3:
+            break
+
+    if not parts:
+        # Last resort: any relevant item's description
+        for item in relevant_items[:3]:
+            desc = item.get("description", "").strip()
+            if desc and desc not in seen:
+                parts.append(desc)
+                seen.add(desc)
+
+    return " ".join(parts) if parts else None
+
+
+def build_preview_summary(race_name, items):
+    """
+    For an upcoming race, find a preview article in the BBC feed or fall back
+    to the Wikipedia evergreen article (circuit background is useful pre-race).
+    """
+    scored = [(item, *_score_item(item, race_name)) for item in items]
+    preview_items = sorted(
+        [(it, ps) for it, _, ps in scored if ps > 0],
+        key=lambda x: -x[1]
+    )
+
+    if preview_items:
+        text = fetch_bbc_article(preview_items[0][0]["url"])
+        if text:
+            return text
+
+    # Wikipedia evergreen fallback (good for circuit background pre-race)
+    print("  Trying Wikipedia evergreen article for preview…")
+    title = race_name.replace(" ", "_")
+    url   = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(title)}"
+    data  = fetch_json(url)
+    if data and "not_found" not in str(data.get("type", "")):
+        extract = data.get("extract", "").strip()
+        if len(extract) >= 100:
+            return extract
+
+    return None
 
 
 # ── Main ───────────────────────────────────────────────────────────────────
@@ -341,7 +298,6 @@ def main():
     print(f"fetch_news.py  —  {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 60)
 
-    # 1. Determine current race
     race, phase = get_current_race()
     if not race:
         print("ERROR: Could not determine current race from Jolpica API")
@@ -358,8 +314,8 @@ def main():
     print(f"Circuit: {circuit}")
 
     result = {
-        "updated":  datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "phase":    phase,
+        "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "phase":   phase,
         "race": {
             "name":    race_name,
             "round":   round_num,
@@ -367,66 +323,28 @@ def main():
             "date":    date,
             "circuit": circuit,
         },
-        "summary":   None,   # best available race narrative
-        "article":   None,   # F1.com article teaser + link
-        "headlines": [],     # BBC headlines
+        "summary": None,
     }
 
-    # 2. Race content — wrap for post-race, preview for upcoming
+    print(f"\n── Fetching {'post-race summary' if phase == 'post-race' else 'race preview'} ──")
+    items = fetch_bbc_rss()
+
     if phase == "post-race":
-        print("\n── Fetching post-race summary ──")
+        text = build_post_race_summary(race_name, items)
+    else:
+        text = build_preview_summary(race_name, items)
 
-        # Wikipedia year-specific article first — if it exists it's a clean
-        # factual recap ("X won the race, Y finished second…")
-        wiki = fetch_wikipedia_summary(race_name, year)
-        if wiki:
-            result["summary"] = wiki
+    if text:
+        result["summary"] = text
+        print(f"  ✓ summary: {len(text)} chars")
+    else:
+        print("  ✗ no summary found", file=sys.stderr)
 
-        # F1.com race report — richer narrative; prefer it over Wikipedia
-        # if we can get it (DuckDuckGo search is best-effort)
-        f1 = fetch_f1com_summary(race_name, year)
-        if f1:
-            result["summary"] = f1            # F1.com wins: actual race color
-            result["article"] = f1
-
-        # If F1.com failed, fall back to Wikipedia as the summary
-        if not result["summary"] and wiki:
-            result["summary"] = wiki
-            result["article"] = wiki
-
-    elif phase == "upcoming":
-        print("\n── Fetching race preview ──")
-
-        # Evergreen Wikipedia article is fine here (circuit history is relevant)
-        wiki = fetch_wikipedia_preview(race_name, year)
-        if wiki:
-            result["summary"] = wiki
-
-        # F1.com preview article preferred if available
-        f1 = fetch_f1com_preview(race_name, year)
-        if f1:
-            result["summary"] = f1
-            result["article"] = f1
-
-        if not result["summary"] and wiki:
-            result["summary"] = wiki
-            result["article"] = wiki
-
-    # 3. BBC headlines (always useful)
-    print("\n── Fetching BBC headlines ──")
-    result["headlines"] = fetch_bbc_headlines()
-
-    # 4. Write output
     os.makedirs("data", exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2, ensure_ascii=False)
 
     print(f"\n✓  Written → {OUTPUT_FILE}")
-    summary_src = result["summary"]["source"] if result["summary"] else "none"
-    article_src = result["article"]["source"] if result["article"] else "none"
-    print(f"   summary source : {summary_src}")
-    print(f"   article source : {article_src}")
-    print(f"   headlines      : {len(result['headlines'])}")
 
 
 if __name__ == "__main__":
