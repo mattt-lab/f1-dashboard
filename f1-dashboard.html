@@ -243,7 +243,7 @@
     </div>
 </main>
 <footer style="text-align:center;padding:20px;font-size:11px;color:#2a2a2a;letter-spacing:1px">
-    build 2026-06-07 · circuit-map contained
+    build 2026-06-07 · auto-rotate circuit map
 </footer>
 
 <script>
@@ -482,6 +482,36 @@ async function loadHighlightsInto(containerId, raceName, season, round) {
 }
 
 // ── Circuit map watermark ─────────────────────────────────────────────
+
+// Parse the approximate bounding box of an SVG path (handles M/m/C/c/L/l/H/h/V/v/Z)
+function getPathBBox(d) {
+    let x = 0, y = 0;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    function track(px, py) {
+        if (px < minX) minX = px; if (px > maxX) maxX = px;
+        if (py < minY) minY = py; if (py > maxY) maxY = py;
+    }
+    const tokens = d.match(/[MmCcLlZzSsQqTtAaHhVv]|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/g) || [];
+    let i = 0, cmd = '';
+    while (i < tokens.length) {
+        const t = tokens[i];
+        if (/^[A-Za-z]$/.test(t)) { cmd = t; i++; continue; }
+        const n = v => parseFloat(tokens[i + v]);
+        if      (cmd === 'M') { x=n(0); y=n(1); track(x,y); i+=2; }
+        else if (cmd === 'm') { x+=n(0); y+=n(1); track(x,y); i+=2; }
+        else if (cmd === 'C') { track(n(0),n(1)); track(n(2),n(3)); x=n(4); y=n(5); track(x,y); i+=6; }
+        else if (cmd === 'c') { track(x+n(0),y+n(1)); track(x+n(2),y+n(3)); x+=n(4); y+=n(5); track(x,y); i+=6; }
+        else if (cmd === 'L') { x=n(0); y=n(1); track(x,y); i+=2; }
+        else if (cmd === 'l') { x+=n(0); y+=n(1); track(x,y); i+=2; }
+        else if (cmd === 'H') { x=n(0); track(x,y); i+=1; }
+        else if (cmd === 'h') { x+=n(0); track(x,y); i+=1; }
+        else if (cmd === 'V') { y=n(0); track(x,y); i+=1; }
+        else if (cmd === 'v') { y+=n(0); track(x,y); i+=1; }
+        else { i++; } // z/Z and unhandled: skip
+    }
+    return { x:minX, y:minY, w:maxX-minX, h:maxY-minY, cx:(minX+maxX)/2, cy:(minY+maxY)/2 };
+}
+
 async function loadCircuitMap(circuitId) {
     const svgName = CIRCUIT_SVG_MAP[circuitId];
     if (!svgName) return;
@@ -501,8 +531,28 @@ async function loadCircuitMap(circuitId) {
 
     const el = document.getElementById('circuit-map-bg');
     if (!el || !pathD) return;
-    el.innerHTML = `<svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-        <path d="${pathD}" style="fill:none;stroke:#fff;stroke-width:18;stroke-linejoin:round;stroke-linecap:round"/>
+
+    // Compute bounding box and auto-rotate portrait circuits 90° CW
+    const bb = getPathBBox(pathD);
+    const pad = 18;
+    const isPortrait = bb.h > bb.w * 1.1;
+
+    let viewBox, transform;
+    if (isPortrait) {
+        // After rotate(90, cx, cy): new x-span = h, new y-span = w
+        const vx = (bb.cx - bb.h / 2 - pad).toFixed(1);
+        const vy = (bb.cy - bb.w / 2 - pad).toFixed(1);
+        const vw = (bb.h + pad * 2).toFixed(1);
+        const vh = (bb.w + pad * 2).toFixed(1);
+        viewBox  = `${vx} ${vy} ${vw} ${vh}`;
+        transform = `rotate(90 ${bb.cx.toFixed(1)} ${bb.cy.toFixed(1)})`;
+    } else {
+        viewBox  = `${(bb.x - pad).toFixed(1)} ${(bb.y - pad).toFixed(1)} ${(bb.w + pad*2).toFixed(1)} ${(bb.h + pad*2).toFixed(1)}`;
+        transform = '';
+    }
+
+    el.innerHTML = `<svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+        <path d="${pathD}" transform="${transform}" style="fill:none;stroke:#fff;stroke-width:18;stroke-linejoin:round;stroke-linecap:round"/>
     </svg>`;
 }
 
