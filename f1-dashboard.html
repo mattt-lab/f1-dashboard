@@ -242,7 +242,7 @@
     </div>
 </main>
 <footer style="text-align:center;padding:20px;font-size:11px;color:#2a2a2a;letter-spacing:1px">
-    build 2026-06-06 · 17:51 UTC
+    build 2026-06-07 · classified-ret fix
 </footer>
 
 <script>
@@ -668,7 +668,11 @@ function renderRaceResults(raceResults) {
         const isRetired = r.positionText
             ? ['R','D','E','W'].includes(r.positionText)
             : !/^(Finished|\+|Lapped)/i.test(r.status);
-        const gap = p===1 ? (r.Time?.time||r.status) : r.Time?.time ? (r.Time.time.startsWith('+') ? r.Time.time : `+${r.Time.time}`) : r.status;
+        // Classified retirement: numeric position but retired — completed enough laps to be classified
+        const isClassified = !isRetired && !r.Time?.time && /retired/i.test(r.status);
+        const gap = isClassified
+            ? `<span class="ret-badge" style="background:rgba(255,255,255,0.07);color:var(--muted)">Ret.</span>`
+            : p===1 ? (r.Time?.time||r.status) : r.Time?.time ? (r.Time.time.startsWith('+') ? r.Time.time : `+${r.Time.time}`) : r.status;
         const ptsLabel = parseFloat(r.points)>0 ? `+${r.points}` : '';
         return `<div class="result-row ${isRetired?'retired':''}">
             <span class="res-pos ${pc}">${isRetired?'DNF':r.position}</span>
@@ -911,7 +915,11 @@ function renderCalResults(round, results) {
         const isRetired = r.positionText
             ? ['R','D','E','W'].includes(r.positionText)
             : !/^(Finished|\+|Lapped)/i.test(r.status);
-        const gap = p===1 ? (r.Time?.time || r.status) : r.Time?.time ? (r.Time.time.startsWith('+') ? r.Time.time : `+${r.Time.time}`) : r.status;
+        // Classified retirement: numeric position but retired — completed enough laps to be classified
+        const isClassified = !isRetired && !r.Time?.time && /retired/i.test(r.status);
+        const gap = isClassified
+            ? `<span class="ret-badge" style="background:rgba(255,255,255,0.07);color:var(--muted)">Ret.</span>`
+            : p===1 ? (r.Time?.time || r.status) : r.Time?.time ? (r.Time.time.startsWith('+') ? r.Time.time : `+${r.Time.time}`) : r.status;
         const ptsLabel = parseFloat(r.points) > 0 ? `+${r.points}` : '';
         return `<div class="result-row ${isRetired ? 'retired' : ''}">
             <span class="res-pos ${pc}">${isRetired ? 'DNF' : r.position}</span>
