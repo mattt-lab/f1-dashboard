@@ -1,0 +1,41 @@
+name: Update F1 Race News
+
+on:
+  schedule:
+    # Every 3 hours — keeps news fresh across the race weekend
+    - cron: '15 */3 * * *'
+  workflow_dispatch:
+    # Also triggerable manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run fetch_news.py
+        run: python scripts/fetch_news.py
+
+      - name: Commit data/race-news.json if changed
+        run: |
+          git config user.name  "F1 News Bot"
+          git config user.email "actions@github.com"
+          git add data/race-news.json
+          # Only commit when content actually changed
+          if git diff --staged --quiet; then
+            echo "No changes — skipping commit"
+          else
+            git commit -m "chore: update race news [skip ci]"
+            git push
+          fi

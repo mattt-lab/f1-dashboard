@@ -187,6 +187,22 @@
         .cal-rp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
         @media (max-width: 700px) { .cal-rp-grid { grid-template-columns: 1fr; } }
 
+        /* ── Race Wrap card ── */
+        .race-wrap-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+        .race-wrap-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
+        .race-wrap-source { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); background: var(--card2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; white-space: nowrap; }
+        .race-wrap-text { font-size: 13px; line-height: 1.65; color: #ccc; margin-bottom: 16px; }
+        .race-wrap-links { display: flex; flex-wrap: wrap; gap: 10px; }
+        .race-wrap-link { font-size: 12px; font-weight: 700; color: var(--red); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+        .race-wrap-link:hover { color: #ff4422; }
+        .race-wrap-divider { border: none; border-top: 1px solid var(--border); margin: 18px 0 14px; }
+        .bbc-headlines { display: flex; flex-direction: column; gap: 0; }
+        .bbc-headline { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--text); transition: color 0.12s; }
+        .bbc-headline:last-child { border-bottom: none; padding-bottom: 0; }
+        .bbc-headline:hover { color: var(--red); }
+        .bbc-headline-title { font-size: 13px; font-weight: 600; line-height: 1.4; }
+        .bbc-headline-meta { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+
         /* ── Skeleton / Error ── */
         .skel { background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%); background-size: 300% 100%; animation: shimmer 1.6s infinite; border-radius: 6px; }
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
@@ -227,6 +243,7 @@
         <div class="section-label">Loading…</div>
         <div class="card"><div class="skel" style="height:180px"></div></div>
     </div>
+    <div id="race-wrap-section"></div>
     <div id="news-section"></div>
     <div id="glance-section">
         <div class="section-label">Season at a Glance</div>
@@ -1144,6 +1161,91 @@ const MOCK_QUAL = [
     {position:'20', Driver:{givenName:'Jack',      familyName:'Doohan'},     Constructor:{constructorId:'alpine'},       Q1:'1:11.867'},
 ];
 
+// ── Race Wrap (data/race-news.json, written by GitHub Actions) ────────
+function timeAgoShort(isoStr) {
+    if (!isoStr) return '';
+    const diff = (Date.now() - new Date(isoStr)) / 1000;
+    if (diff < 3600)   return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400)  return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
+}
+
+async function loadRaceNews() {
+    const el = document.getElementById('race-wrap-section');
+    if (!el) return;
+    try {
+        const r = await fetch(`data/race-news.json?_=${Date.now()}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        renderRaceWrap(d, el);
+    } catch(e) {
+        console.warn('race-news.json not available:', e.message);
+    }
+}
+
+function renderRaceWrap(d, el) {
+    const hasSummary  = d.summary?.text;
+    const hasArticle  = d.article?.url;
+    const hasHeadlines = d.headlines?.length;
+    if (!hasSummary && !hasArticle && !hasHeadlines) return;
+
+    // ── Summary block ──
+    let summaryHtml = '';
+    if (hasSummary) {
+        // Truncate to ~400 chars at a sentence boundary
+        let text = d.summary.text;
+        if (text.length > 420) {
+            const cut = text.lastIndexOf('. ', 400);
+            text = (cut > 100 ? text.slice(0, cut + 1) : text.slice(0, 400)) + '…';
+        }
+
+        // Build links
+        const links = [];
+        if (d.summary.url) {
+            links.push(`<a href="${d.summary.url}" target="_blank" rel="noopener" class="race-wrap-link">
+                ${d.summary.source} <span>↗</span>
+            </a>`);
+        }
+        // If article is a *different* source from summary, show it too
+        if (hasArticle && d.article.source !== d.summary.source) {
+            links.push(`<a href="${d.article.url}" target="_blank" rel="noopener" class="race-wrap-link">
+                ${d.article.source} <span>↗</span>
+            </a>`);
+        }
+
+        const srcLabel = d.summary.source || 'Summary';
+        summaryHtml = `
+            <div class="race-wrap-head">
+                <div class="section-label" style="margin-bottom:0">Race Wrap · ${d.race?.name || ''}</div>
+                <span class="race-wrap-source">${srcLabel}</span>
+            </div>
+            <p class="race-wrap-text">${text}</p>
+            ${links.length ? `<div class="race-wrap-links">${links.join('')}</div>` : ''}`;
+    }
+
+    // ── BBC Headlines block ──
+    let headlinesHtml = '';
+    if (hasHeadlines) {
+        const rows = d.headlines.map(h => {
+            const age = timeAgoShort(h.published ? new Date(h.published).toISOString() : '');
+            const title = h.title.replace(/&amp;/g,'&').replace(/&#039;/g,"'").replace(/&quot;/g,'"');
+            return `<a href="${h.url}" target="_blank" rel="noopener" class="bbc-headline">
+                <span class="bbc-headline-title">${title}</span>
+                ${age ? `<span class="bbc-headline-meta">${age}</span>` : ''}
+            </a>`;
+        }).join('');
+
+        headlinesHtml = `
+            ${summaryHtml ? '<hr class="race-wrap-divider">' : ''}
+            <div class="section-label" style="margin-bottom:12px">F1 Headlines · BBC Sport</div>
+            <div class="bbc-headlines">${rows}</div>`;
+    }
+
+    if (!summaryHtml && !headlinesHtml) return;
+
+    el.innerHTML = `<div class="race-wrap-card">${summaryHtml}${headlinesHtml}</div>`;
+}
+
 // ── Main ─────────────────────────────────────────────────────────────
 async function init() {
     try {
@@ -1193,6 +1295,7 @@ async function init() {
 
         renderGlanceSection(drivers, cons, races, completedCount);
         renderCalendar(races, now, season);
+        loadRaceNews(); // non-blocking — populates #race-wrap-section from data/race-news.json
 
     } catch(err) {
         console.error(err);
