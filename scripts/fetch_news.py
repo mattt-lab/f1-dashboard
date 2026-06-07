@@ -72,18 +72,40 @@ def strip_tags(html):
 
 # ── Jolpica: current race info ─────────────────────────────────────────────
 
-PREVIEW_WINDOW_DAYS = 7  # Switch to preview mode this many days before the race
+def _weekend_start(race_dict):
+    """
+    Return the datetime of the earliest session in a race weekend
+    (FP1, FP2, qualifying — whichever comes first).
+    Falls back to the race time itself if no session data is present.
+    """
+    race_dt_str = f"{race_dict['date']}T{race_dict.get('time', '15:00:00Z')}"
+    earliest = datetime.fromisoformat(race_dt_str.replace("Z", "+00:00"))
+
+    for session_key in ("FirstPractice", "SecondPractice", "ThirdPractice",
+                        "Sprint", "SprintQualifying", "Qualifying"):
+        s = race_dict.get(session_key)
+        if not s:
+            continue
+        try:
+            s_dt = datetime.fromisoformat(
+                f"{s['date']}T{s.get('time', '12:00:00Z')}".replace("Z", "+00:00")
+            )
+            if s_dt < earliest:
+                earliest = s_dt
+        except (KeyError, ValueError):
+            continue
+
+    return earliest
+
 
 def get_current_race():
     """
     Returns (race_dict, phase) where phase is one of:
       'post-race'  – between race weekends; show wrap of last completed race
-      'upcoming'   – next race is within PREVIEW_WINDOW_DAYS; show preview
+      'upcoming'   – next race weekend has started (FP1 has begun); show preview
 
-    Logic:
-      1. Fetch the full season calendar to find next/last race.
-      2. If the next race starts within PREVIEW_WINDOW_DAYS → 'upcoming'.
-      3. Otherwise → 'post-race' of the most recently completed race.
+    The switch to 'upcoming' fires when the next weekend's first on-track
+    session begins — matching the dashboard's own race-weekend detection.
     """
     data = fetch_json(f"{JOLPICA_API}/current.json?limit=100")
     if not data:
@@ -93,28 +115,26 @@ def get_current_race():
     now   = datetime.now(timezone.utc)
 
     next_race = None   # (race_dict, race_datetime)
-    last_race = None   # most recently completed
+    last_race = None   # most recently completed race
 
     for r in races:
         race_dt_str = f"{r['date']}T{r.get('time', '15:00:00Z')}"
         race_dt = datetime.fromisoformat(race_dt_str.replace("Z", "+00:00"))
         if race_dt > now:
-            if next_race is None:           # first future race = the next one
+            if next_race is None:       # first future race = the next one
                 next_race = (r, race_dt)
         else:
-            last_race = (r, race_dt)        # keep updating; last one wins
+            last_race = (r, race_dt)   # keep updating; last one wins
 
-    # If next race is within the preview window, switch to upcoming mode
-    if next_race:
-        days_away = (next_race[1] - now).total_seconds() / 86400
-        if days_away <= PREVIEW_WINDOW_DAYS:
-            return next_race[0], "upcoming"
+    # Switch to 'upcoming' only once the next weekend's first session has started
+    if next_race and _weekend_start(next_race[0]) <= now:
+        return next_race[0], "upcoming"
 
-    # Otherwise show the post-race wrap for the last completed race
+    # Between weekends — show post-race wrap for the last completed race
     if last_race:
         return last_race[0], "post-race"
 
-    # Edge case: no completed race yet (very start of season)
+    # Edge case: very start of season, no completed race yet
     if next_race:
         return next_race[0], "upcoming"
 
