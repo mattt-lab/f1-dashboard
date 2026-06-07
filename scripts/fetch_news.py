@@ -278,29 +278,25 @@ def _fetch_wikipedia_article(title):
 
 def fetch_wikipedia_summary(race_name, year):
     """
-    Post-race: fetch Wikipedia article for this year's race.
-    Tries '2026_Monaco_Grand_Prix' first; falls back to 'Monaco_Grand_Prix'.
+    Post-race: fetch the year-specific Wikipedia article only (e.g. '2026_Monaco_Grand_Prix').
+    The evergreen article ('Monaco_Grand_Prix') is generic circuit history with no race results,
+    so we skip it entirely — year-specific or nothing.
     """
     year_title = f"{year}_{race_name.replace(' ', '_')}"
-    result = _fetch_wikipedia_article(year_title)
-    if result:
-        return result
-    # Year-specific article not yet published — fall back to evergreen article
-    print("  Wikipedia: year-specific article not found, trying evergreen…")
-    return _fetch_wikipedia_article(race_name.replace(' ', '_'))
+    return _fetch_wikipedia_article(year_title)
 
 
 def fetch_wikipedia_preview(race_name, year):
     """
-    Pre-race: try year-specific preview article, then evergreen circuit/race article.
-    Same fallback chain as fetch_wikipedia_summary but with preview framing.
+    Pre-race: try year-specific article first (may exist post-announcement),
+    then fall back to the evergreen article for circuit/race background.
+    The evergreen article is fine for previews (circuit history is relevant),
+    but not for post-race recaps (it has no results).
     """
-    # Year-specific article may already exist (e.g. added after announcement)
     year_title = f"{year}_{race_name.replace(' ', '_')}"
     result = _fetch_wikipedia_article(year_title)
     if result:
         return result
-    # Fall back to the timeless race article (good background on the circuit)
     print("  Wikipedia: year-specific article not found, trying evergreen…")
     return _fetch_wikipedia_article(race_name.replace(' ', '_'))
 
@@ -380,34 +376,41 @@ def main():
     if phase == "post-race":
         print("\n── Fetching post-race summary ──")
 
-        # Try F1.com race report first (richest narrative)
-        f1 = fetch_f1com_summary(race_name, year)
-        if f1:
-            result["article"] = f1
-            result["summary"] = f1            # F1.com as default summary
-
-        # Wikipedia often has a cleaner single-paragraph intro
+        # Wikipedia year-specific article first — if it exists it's a clean
+        # factual recap ("X won the race, Y finished second…")
         wiki = fetch_wikipedia_summary(race_name, year)
         if wiki:
-            result["summary"] = wiki          # prefer Wikipedia for the summary card
-            if not result["article"]:
-                result["article"] = wiki      # fallback if F1.com failed
+            result["summary"] = wiki
+
+        # F1.com race report — richer narrative; prefer it over Wikipedia
+        # if we can get it (DuckDuckGo search is best-effort)
+        f1 = fetch_f1com_summary(race_name, year)
+        if f1:
+            result["summary"] = f1            # F1.com wins: actual race color
+            result["article"] = f1
+
+        # If F1.com failed, fall back to Wikipedia as the summary
+        if not result["summary"] and wiki:
+            result["summary"] = wiki
+            result["article"] = wiki
 
     elif phase == "upcoming":
         print("\n── Fetching race preview ──")
 
-        # Try F1.com preview article
-        f1 = fetch_f1com_preview(race_name, year)
-        if f1:
-            result["article"] = f1
-            result["summary"] = f1
-
-        # Wikipedia (year-specific if published, else evergreen race article)
+        # Evergreen Wikipedia article is fine here (circuit history is relevant)
         wiki = fetch_wikipedia_preview(race_name, year)
         if wiki:
-            result["summary"] = wiki          # Wikipedia often best for circuit background
-            if not result["article"]:
-                result["article"] = wiki
+            result["summary"] = wiki
+
+        # F1.com preview article preferred if available
+        f1 = fetch_f1com_preview(race_name, year)
+        if f1:
+            result["summary"] = f1
+            result["article"] = f1
+
+        if not result["summary"] and wiki:
+            result["summary"] = wiki
+            result["article"] = wiki
 
     # 3. BBC headlines (always useful)
     print("\n── Fetching BBC headlines ──")
