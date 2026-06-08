@@ -125,14 +125,21 @@ def get_current_race():
         else:
             last_race = (r, race_dt)
 
-    if next_race and _weekend_start(next_race[0]) <= now:
-        return next_race[0], "upcoming"
-
+    # Mirror the dashboard's findWeekendRace window exactly:
+    #   post-race  →  FP1 up to race + 48 h
+    #   upcoming   →  everything else (48 h after last race until next FP1,
+    #                  AND during the next race weekend itself)
     if last_race:
-        return last_race[0], "post-race"
+        hours_since = (now - last_race[1]).total_seconds() / 3600
+        if hours_since <= 48:
+            return last_race[0], "post-race"
 
     if next_race:
         return next_race[0], "upcoming"
+
+    # Fallback: no completed race yet (very start of season)
+    if last_race:
+        return last_race[0], "post-race"
 
     return None, None
 
