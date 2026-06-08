@@ -30,9 +30,6 @@ OUTPUT_FILE = "data/race-news.json"
 UA          = "F1Dashboard/1.0 (+https://github.com/mattt-lab/f1-dashboard)"
 TIMEOUT     = 12  # seconds per request
 
-SKIP_PHRASES = {"cookie", "subscribe", "newsletter", "sign up", "privacy",
-                "terms and conditions", "javascript", "bbc sport footer"}
-
 
 # ── HTTP helpers ───────────────────────────────────────────────────────────
 
@@ -166,43 +163,9 @@ def fetch_bbc_rss():
         return []
 
 
-def fetch_bbc_article(url, max_paragraphs=4):
-    """
-    Fetch a BBC Sport article page and return its opening paragraphs as a
-    single string. Returns None if the article can't be extracted.
-    """
-    clean_url = url.split("?")[0]   # strip RSS tracking params
-    print(f"  Fetching BBC article: {clean_url}")
-    html = fetch(clean_url)
-    if not html:
-        return None
-
-    paragraphs = re.findall(r"<p[^>]*>(.*?)</p>", html, re.DOTALL | re.IGNORECASE)
-    clean = []
-    for p in paragraphs:
-        text = strip_tags(p).strip()
-        low  = text.lower()
-
-        if len(text) < 60:
-            continue
-        if any(phrase in low for phrase in SKIP_PHRASES):
-            continue
-        # Navigation dumps have no sentence structure — skip anything without a period
-        if "." not in text:
-            continue
-
-        clean.append(text)
-        if len(clean) >= max_paragraphs:
-            break
-
-    if not clean:
-        print("  BBC article: no usable paragraphs extracted")
-        return None
-
-    return " ".join(clean)
 
 
-# Keywords that identify a race-result article vs a preview/feature
+# Keywords that identify race-result vs preview items
 RESULT_KW  = {"wins", "victory", "takes win", "clinches", "triumphs",
               "wins the", "takes the win", "race winner"}
 PREVIEW_KW = {"preview", "guide", "ones to watch", "what to expect",
@@ -212,12 +175,8 @@ PREVIEW_KW = {"preview", "guide", "ones to watch", "what to expect",
 def _score_item(item, race_name):
     """Return (result_score, preview_score) for a BBC RSS item."""
     combined = (item["title"] + " " + item.get("description", "")).lower()
-    race_low  = race_name.lower()
-
-    # Must mention this race (or Grand Prix generically)
-    if race_low not in combined and "grand prix" not in combined:
+    if race_name.lower() not in combined and "grand prix" not in combined:
         return 0, 0
-
     r_score = sum(1 for kw in RESULT_KW  if kw in combined)
     p_score = sum(1 for kw in PREVIEW_KW if kw in combined)
     return r_score, p_score
@@ -225,65 +184,59 @@ def _score_item(item, race_name):
 
 def build_post_race_summary(race_name, items):
     """
-    Find the race-report article in the BBC RSS feed, fetch its full text,
-    and return a summary string.  Falls back to combining RSS descriptions.
+    Build a race summary by combining the best RSS item descriptions.
+    The RSS descriptions are already clean, well-written sentences —
+    no page scraping needed.
+    Priority: result items first ("X wins Monaco…"), then color items.
     """
-    # Sort items by result relevance
     scored = [(item, *_score_item(item, race_name)) for item in items]
-    result_items   = sorted(
-        [(it, rs) for it, rs, _ in scored if rs > 0],
-        key=lambda x: -x[1]
-    )
-    relevant_items = [it for it, rs, ps in scored if rs > 0 or ps == 0 and
-                      (race_name.lower() in (it["title"] + it.get("description","")).lower()
-                       or "grand prix" in (it["title"] + it.get("description","")).lower())]
 
-    # 1. Try fetching the main race-report article
-    if result_items:
-        text = fetch_bbc_article(result_items[0][0]["url"])
-        if text:
-            return text
+    result_items = [(it, rs) for it, rs, _  in scored if rs > 0]
+    color_items  = [(it, 0)  for it, rs, ps in scored
+                    if rs == 0 and ps == 0
+                    and (race_name.lower() in (it["title"] + it.get("description","")).lower()
+                         or "grand prix" in (it["title"] + it.get("description","")).lower())]
 
-    # 2. Fall back: combine the best RSS descriptions
-    print("  Falling back to combining RSS descriptions…")
-    parts = []
-    seen  = set()
-    for item, r_score, _ in scored:
-        desc = item.get("description", "").strip()
-        if desc and desc not in seen and r_score > 0:
+    result_items.sort(key=lambda x: -x[1])
+
+    parts, seen = [], set()
+    for it, _ in (result_items + color_items):
+        desc = it.get("description", "").strip()
+        if desc and desc not in seen:
             parts.append(desc)
             seen.add(desc)
         if len(parts) >= 3:
             break
 
     if not parts:
-        # Last resort: any relevant item's description
-        for item in relevant_items[:3]:
-            desc = item.get("description", "").strip()
-            if desc and desc not in seen:
-                parts.append(desc)
-                seen.add(desc)
+        print("  No relevant RSS descriptions found", file=sys.stderr)
+        return None
 
-    return " ".join(parts) if parts else None
+    return " ".join(parts)
 
 
 def build_preview_summary(race_name, items):
     """
-    For an upcoming race, find a preview article in the BBC feed or fall back
-    to the Wikipedia evergreen article (circuit background is useful pre-race).
+    Build an upcoming-race preview from RSS descriptions, falling back to
+    Wikipedia's evergreen article for circuit background if nothing found.
     """
     scored = [(item, *_score_item(item, race_name)) for item in items]
-    preview_items = sorted(
-        [(it, ps) for it, _, ps in scored if ps > 0],
-        key=lambda x: -x[1]
-    )
+    preview_items = [(it, ps) for it, _, ps in scored if ps > 0]
+    preview_items.sort(key=lambda x: -x[1])
 
-    if preview_items:
-        text = fetch_bbc_article(preview_items[0][0]["url"])
-        if text:
-            return text
+    parts, seen = [], set()
+    for it, _ in preview_items:
+        desc = it.get("description", "").strip()
+        if desc and desc not in seen:
+            parts.append(desc)
+            seen.add(desc)
+        if len(parts) >= 3:
+            break
 
-    # Wikipedia evergreen fallback (good for circuit background pre-race)
+    if parts:
+        return " ".join(parts)
+
+    # Wikipedia evergreen fallback (circuit background is relevant pre-race)
     print("  Trying Wikipedia evergreen article for preview…")
     title = race_name.replace(" ", "_")
     url   = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(title)}"
