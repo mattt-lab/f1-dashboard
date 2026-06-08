@@ -1184,9 +1184,11 @@ async function loadRaceNews() {
 }
 
 function renderRaceWrap(d, el) {
-    if (!d.summary) return;
+    // Support both plain string (current) and legacy {text} object shape
+    const raw = typeof d.summary === 'string' ? d.summary : d.summary?.text;
+    if (!raw) return;
 
-    let text = d.summary;
+    let text = raw;
     if (text.length > 420) {
         const cut = text.lastIndexOf('. ', 400);
         text = (cut > 100 ? text.slice(0, cut + 1) : text.slice(0, 400)) + '…';

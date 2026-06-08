@@ -182,10 +182,15 @@ def fetch_bbc_article(url, max_paragraphs=4):
     for p in paragraphs:
         text = strip_tags(p).strip()
         low  = text.lower()
+
         if len(text) < 60:
             continue
         if any(phrase in low for phrase in SKIP_PHRASES):
             continue
+        # Navigation dumps have no sentence structure — skip anything without a period
+        if "." not in text:
+            continue
+
         clean.append(text)
         if len(clean) >= max_paragraphs:
             break
