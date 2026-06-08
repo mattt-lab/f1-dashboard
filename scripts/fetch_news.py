@@ -267,17 +267,22 @@ def claude_summarize(race_name, snippets, mode="post-race"):
 
     if mode == "post-race":
         instruction = (
-            f"Write a dramatic 2-3 sentence race summary of the {race_name}. "
-            f"Be specific: name the winner, "
-            f"key results, and any dramatic crashes moments or storylines. "
-            f"Keep it short. Write it punchy, factual, no fluff. "
+            f"Write a 3-sentence race summary of the {race_name} for an F1 dashboard. "
+            f"Write like a sports journalist — no clichés like 'claimed victory', "
+            f"'took the chequered flag', or 'dominant performance'. "
+            f"Use specific facts and active verbs. "
+            f"Sentence 1: who won and how, with a specific detail. "
+            f"Sentence 2: a key dramatic moment or quote. "
+            f"Sentence 3: what it means for the championship standings. "
             f"Output only the summary text, no preamble."
         )
     else:
         instruction = (
-            f"Write a 2-3 sentence preview of the upcoming {race_name} "
-            f"for an F1 dashboard widget. Highlight any drama, key storylines, "
-            f"title contenders, and what to watch for. Keep it short."
+            f"Write a 3-sentence preview of the upcoming {race_name} for an F1 dashboard. "
+            f"Write like a sports journalist — active verbs, specific details, no filler. "
+            f"Sentence 1: the headline storyline or title battle coming into the weekend. "
+            f"Sentence 2: a secondary rivalry, wildcard, or tactical angle to watch. "
+            f"Sentence 3: what would make this race significant in the championship. "
             f"Output only the preview text, no preamble."
         )
 
