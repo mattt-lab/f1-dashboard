@@ -2,8 +2,8 @@ name: Update F1 Race News
 
 on:
   schedule:
-    # Every 3 hours — keeps news fresh across the race weekend
-    - cron: '15 */3 * * *'
+    - cron: '15 */3 * * 5,6,0'  # Every 3h on Fri/Sat/Sun (race weekends)
+    - cron: '15 9 * * 1,2,3,4'  # Once at 09:15 UTC on Mon–Thu (between races)
   workflow_dispatch:
     # Also triggerable manually from the Actions tab
 
