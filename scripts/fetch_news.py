@@ -267,8 +267,8 @@ def claude_summarize(race_name, snippets, mode="post-race"):
 
     if mode == "post-race":
         instruction = (
-            f"Write a 2-3 sentence race summary of the {race_name} "
-            f"for an F1 dashboard widget. Be specific: name the winner, "
+            f"Write a dramatic 2-3 sentence race summary of the {race_name}. "
+            f"Be specific: name the winner, "
             f"key results, and any dramatic crashes moments or storylines. "
             f"Keep it short. Write it punchy, factual, no fluff. "
             f"Output only the summary text, no preamble."
@@ -276,7 +276,7 @@ def claude_summarize(race_name, snippets, mode="post-race"):
     else:
         instruction = (
             f"Write a 2-3 sentence preview of the upcoming {race_name} "
-            f"for an F1 dashboard widget. Highlight key storylines, "
+            f"for an F1 dashboard widget. Highlight any drama, key storylines, "
             f"title contenders, and what to watch for. Keep it short."
             f"Output only the preview text, no preamble."
         )
