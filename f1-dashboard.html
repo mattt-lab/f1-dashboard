@@ -1185,14 +1185,8 @@ async function loadRaceNews() {
 
 function renderRaceWrap(d, el) {
     // Support both plain string (current) and legacy {text} object shape
-    const raw = typeof d.summary === 'string' ? d.summary : d.summary?.text;
-    if (!raw) return;
-
-    let text = raw;
-    if (text.length > 420) {
-        const cut = text.lastIndexOf('. ', 400);
-        text = (cut > 100 ? text.slice(0, cut + 1) : text.slice(0, 400)) + '…';
-    }
+    const text = typeof d.summary === 'string' ? d.summary : d.summary?.text;
+    if (!text) return;
 
     el.innerHTML = `<div class="race-wrap-card"><p class="race-wrap-text" style="margin-bottom:0">${text}</p></div>`;
 }
