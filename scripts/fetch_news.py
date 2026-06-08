@@ -173,9 +173,11 @@ PREVIEW_KW = {"preview", "guide", "ones to watch", "what to expect",
 
 
 def _score_item(item, race_name):
-    """Return (result_score, preview_score) for a BBC RSS item."""
+    """Return (result_score, preview_score) for a BBC RSS item.
+    Item must explicitly mention the current race name — no generic
+    'grand prix' fallback, which lets other races bleed in."""
     combined = (item["title"] + " " + item.get("description", "")).lower()
-    if race_name.lower() not in combined and "grand prix" not in combined:
+    if race_name.lower() not in combined:
         return 0, 0
     r_score = sum(1 for kw in RESULT_KW  if kw in combined)
     p_score = sum(1 for kw in PREVIEW_KW if kw in combined)
@@ -194,8 +196,7 @@ def build_post_race_summary(race_name, items):
     result_items = [(it, rs) for it, rs, _  in scored if rs > 0]
     color_items  = [(it, 0)  for it, rs, ps in scored
                     if rs == 0 and ps == 0
-                    and (race_name.lower() in (it["title"] + it.get("description","")).lower()
-                         or "grand prix" in (it["title"] + it.get("description","")).lower())]
+                    and race_name.lower() in (it["title"] + it.get("description","")).lower()]
 
     result_items.sort(key=lambda x: -x[1])
 
