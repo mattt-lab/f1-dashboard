@@ -148,7 +148,7 @@ def fetch_bbc_rss():
     try:
         root = ET.fromstring(xml_text)
         items = []
-        for item in root.findall(".//item"):
+        for item in root.findall(".//item")[:5]:
             title = item.findtext("title", "").strip()
             link  = item.findtext("link",  "").strip()
             desc  = strip_tags(item.findtext("description", "")).strip()
