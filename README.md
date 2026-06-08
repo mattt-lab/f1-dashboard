@@ -1,6 +1,6 @@
 # 🏎️ F1 Dashboard
 
-> A live Formula 1 companion — race weekends, standings, and results, all in one dark-mode dashboard.
+> A live Formula 1 companion — race weekends, standings, results, and AI-generated race summaries, all in one dark-mode dashboard.
 
 **[🔴 Live Demo →](https://mattt-lab.github.io/f1-dashboard/)**
 
@@ -10,21 +10,31 @@
 
 The dashboard automatically detects where you are in the F1 calendar and shows you exactly what's relevant right now:
 
-- **Race weekend?** You get a live countdown to the next session, all results as they come in (qualifying, sprint, race), and a direct link to YouTube highlights.
-- **Between races?** You get a countdown to the next grand prix, the full weekend schedule, and a season snapshot.
-- **Any time:** scroll the season calendar strip, click any past race to expand the top-10 results inline, and jump to the full driver or constructor standings.
+- **Race weekend?** Live countdown to the next session, all results as they come in, and a circuit map watermark in the banner.
+- **Post-race (within 48h)?** A Race Wrap card appears above the session results — an AI-written summary of what happened, pulled from BBC Sport.
+- **Between races?** Countdown to the next grand prix, the full weekend schedule, and a Race Preview card with storylines and title battle context.
+- **Any time:** scroll the season calendar, click any past race to expand results inline, and jump to full driver or constructor standings.
 
 ---
 
 ## Features
 
 ### 🏁 Race Weekend Hub
-- Live phase detection — knows if you're in FP, qualifying, sprint, or race weekend
+- Phase detection — knows if you're in FP, qualifying, sprint, or post-race
 - Session-by-session countdown clock (hours:minutes:seconds)
 - Collapsible results for every session — only the most recent auto-expands
 - Qualifying results with Q1/Q2/Q3 section dividers
-- Race & sprint results with intervals, DNF detection, and points earned
-- YouTube highlights link for every past race in the calendar
+- Race & sprint results with intervals, DNF/classified-retirement detection, and points earned
+- Circuit map watermark in the race banner, auto-rotated for portrait-shaped tracks (e.g. Monaco)
+- YouTube highlights link for every past race
+
+### 📰 Race Wrap / Race Preview Card
+- Appears between the race banner and the sessions panel
+- **Post-race (0–48h after the race):** AI-written recap — winner, key moment, championship implication — sourced from BBC Sport headlines
+- **Between races (48h+ after the race):** AI-written preview — headline storyline, tactical angle, championship stakes — for the upcoming grand prix
+- Written in sports-journalist style: active verbs, specific facts, no clichés
+- Powered by Claude (Haiku) via GitHub Actions; falls back to BBC RSS descriptions if the API is unavailable
+- Shows blank if the cached JSON doesn't match the current race/phase — never shows stale content
 
 ### 📅 Season Calendar
 - Full scrollable race strip, auto-centered on the current/next round
@@ -33,14 +43,13 @@ The dashboard automatically detects where you are in the F1 calendar and shows y
 
 ### 📊 Standings Pages
 - Full driver and constructor championship tables with team colours
-- "Closest Battles" — sorted by tightest points gap, not race order
+- "Closest Battles" — sorted by tightest points gap
 - "Who Can Still Win" and "Points Needed" championship analysis
 - Season at a glance: leader gaps, races remaining, max points available
 
 ### ✨ Details
-- Zero dependencies — vanilla HTML, CSS, and JavaScript
-- All data from the free [Jolpica/Ergast F1 API](https://api.jolpi.ca/) — no API key needed
-- YouTube highlights via RSS, cached in `localStorage` for 6 hours
+- Zero runtime dependencies — vanilla HTML, CSS, and JavaScript
+- All live data from the free [Jolpica/Ergast F1 API](https://api.jolpi.ca/) — no key needed
 - Fully responsive, works on mobile
 - Dark mode only (obviously)
 
@@ -50,15 +59,44 @@ The dashboard automatically detects where you are in the F1 calendar and shows y
 
 | File | Description |
 |---|---|
-| `f1-dashboard.html` | Main hub — race weekend or next race countdown |
+| `f1-dashboard.html` | Main hub — race weekend, between-races, standings snapshot |
 | `f1-drivers.html` | Full driver championship standings |
 | `f1-constructors.html` | Full constructor championship standings |
 
 ---
 
+## Race Wrap pipeline
+
+A GitHub Actions workflow runs on a schedule and writes `data/race-news.json`, which the dashboard fetches on load.
+
+```
+BBC Sport F1 RSS
+      │
+      ▼
+fetch_news.py (GitHub Actions)
+  • Detects phase: post-race (0–48h) or upcoming
+  • Filters RSS for current-race headlines (with circuit-name aliases)
+  • Calls Claude API → 3-sentence sports-journalist summary
+  • Falls back to stitched RSS descriptions if Claude unavailable
+      │
+      ▼
+data/race-news.json  ←  committed back to repo
+      │
+      ▼
+Dashboard fetches on load, validates race name + phase before rendering
+```
+
+**Schedule:**
+- Friday–Sunday (race weekends): every 3 hours
+- Monday–Thursday (between races): once daily at 09:15 UTC
+
+**Required GitHub secret:** `ANTHROPIC_API_KEY` — add it under Settings → Secrets and variables → Actions.
+
+---
+
 ## Running locally
 
-These files make API calls at runtime, so they need to be served over HTTP — just double-clicking won't work.
+These files make API calls at runtime, so they need to be served over HTTP.
 
 ```bash
 # Option 1 — Node.js
@@ -81,16 +119,21 @@ Append `?mock=qual` to the dashboard URL to preview the post-qualifying UI state
 | Concern | Solution |
 |---|---|
 | F1 data | [Jolpica Ergast API](https://api.jolpi.ca/ergast/f1) — free, no key |
-| F1 news | BBC Sport F1 RSS via [rss2json](https://rss2json.com) |
+| Race summaries | BBC Sport F1 RSS + Claude Haiku (via GitHub Actions) |
+| F1 news feed | BBC Sport F1 RSS via [rss2json](https://rss2json.com) |
 | YouTube highlights | F1 channel RSS feed via rss2json, cached in localStorage |
 | Hosting | GitHub Pages |
-| Dependencies | None |
+| Runtime dependencies | None |
 
 ---
 
 ## Data freshness
 
-Results appear as soon as the Jolpica API updates after each session — typically within minutes of the chequered flag. YouTube highlights are fetched from the F1 channel RSS feed (last 15 videos) and cached per race weekend for 6 hours.
+| Data | Freshness |
+|---|---|
+| Race results / standings | Live from Jolpica API on every page load |
+| Race Wrap / Preview blurb | Regenerated by GitHub Actions (every 3h on race weekends, daily otherwise) |
+| YouTube highlights | Cached in localStorage for 6 hours |
 
 ---
 
