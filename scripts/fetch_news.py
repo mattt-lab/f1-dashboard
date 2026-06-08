@@ -171,13 +171,45 @@ RESULT_KW  = {"wins", "victory", "takes win", "clinches", "triumphs",
 PREVIEW_KW = {"preview", "guide", "ones to watch", "what to expect",
               "talking points", "five things", "what we learned"}
 
+# BBC often uses the circuit city/name instead of the official Jolpica race name.
+# Each entry is (official name fragment → [additional search terms]).
+RACE_NAME_ALIASES = {
+    "spanish":        ["barcelona", "catalunya"],
+    "british":        ["silverstone"],
+    "united states":  ["austin", "cota"],
+    "mexican":        ["mexico city"],
+    "são paulo":      ["brazil", "interlagos"],
+    "azerbaijan":     ["baku"],
+    "belgian":        ["spa"],
+    "emilia romagna": ["imola"],
+    "dutch":          ["zandvoort"],
+    "hungarian":      ["hungaroring", "budapest"],
+    "japanese":       ["suzuka"],
+    "australian":     ["melbourne"],
+    "canadian":       ["montreal"],
+    "saudi arabian":  ["jeddah"],
+    "chinese":        ["shanghai"],
+    "qatar":          ["lusail"],
+}
+
+
+def _search_terms(race_name):
+    """Return a list of strings, any of which counts as a match for this race."""
+    terms = [race_name.lower()]
+    low = race_name.lower()
+    for key, aliases in RACE_NAME_ALIASES.items():
+        if key in low:
+            terms.extend(aliases)
+    return terms
+
 
 def _score_item(item, race_name):
     """Return (result_score, preview_score) for a BBC RSS item.
-    Item must explicitly mention the current race name — no generic
-    'grand prix' fallback, which lets other races bleed in."""
+    Accepts any of the race's known aliases so BBC's city-based naming
+    (e.g. 'Barcelona-Catalunya') matches Jolpica's official name ('Spanish GP')."""
     combined = (item["title"] + " " + item.get("description", "")).lower()
-    if race_name.lower() not in combined:
+    terms    = _search_terms(race_name)
+    if not any(t in combined for t in terms):
         return 0, 0
     r_score = sum(1 for kw in RESULT_KW  if kw in combined)
     p_score = sum(1 for kw in PREVIEW_KW if kw in combined)
@@ -197,9 +229,10 @@ def _collect_snippets(race_name, items, max_items=6):
     """
     scored = _race_relevant_items(race_name, items)
     result_items = sorted([(it, rs) for it, rs, _ in scored if rs > 0], key=lambda x: -x[1])
+    terms = _search_terms(race_name)
     color_items  = [(it, 0) for it, rs, ps in scored
-                    if rs == 0 and race_name.lower() in
-                    (it["title"] + it.get("description", "")).lower()]
+                    if rs == 0 and any(t in (it["title"] + it.get("description", "")).lower()
+                                       for t in terms)]
 
     snippets, seen = [], set()
     for it, _ in (result_items + color_items):
@@ -227,17 +260,17 @@ def claude_summarize(race_name, snippets, mode="post-race"):
 
     if mode == "post-race":
         instruction = (
-            f"Write a 2-3 sentence newsy race summary of the {race_name} "
+            f"Write a 2-3 sentence race summary of the {race_name} "
             f"for an F1 dashboard widget. Be specific: name the winner, "
-            f"key results, and any dramatic moments or storylines. "
-            f"Write it as a short news paragraph — punchy, factual, no fluff. "
+            f"key results, and any dramatic crashes moments or storylines. "
+            f"Keep it short. Write it punchy, factual, no fluff. "
             f"Output only the summary text, no preamble."
         )
     else:
         instruction = (
             f"Write a 2-3 sentence preview of the upcoming {race_name} "
             f"for an F1 dashboard widget. Highlight key storylines, "
-            f"title contenders, and what to watch for. "
+            f"title contenders, and what to watch for. Keep it short."
             f"Output only the preview text, no preamble."
         )
 
