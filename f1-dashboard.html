@@ -1171,20 +1171,25 @@ function timeAgoShort(isoStr) {
     return `${Math.floor(diff/86400)}d ago`;
 }
 
-async function loadRaceNews() {
+async function loadRaceNews(raceName, phase) {
     const el = document.getElementById('race-wrap-section');
     if (!el) return;
     try {
         const r = await fetch(`data/race-news.json?_=${Date.now()}`);
         if (!r.ok) return;
         const d = await r.json();
-        renderRaceWrap(d, el);
+        renderRaceWrap(d, el, raceName, phase);
     } catch(e) {
         console.warn('race-news.json not available:', e.message);
     }
 }
 
-function renderRaceWrap(d, el) {
+function renderRaceWrap(d, el, raceName, phase) {
+    // Bail if the JSON is stale — wrong race or wrong phase means the
+    // Actions workflow hasn't run yet for the current state, show nothing.
+    if (phase && d.phase !== phase) return;
+    if (raceName && d.race?.name !== raceName) return;
+
     // Support both plain string (current) and legacy {text} object shape
     const text = typeof d.summary === 'string' ? d.summary : d.summary?.text;
     if (!text) return;
@@ -1222,6 +1227,7 @@ async function init() {
             renderWeekendHub(MOCK_RACE, mockResults, MOCK_NOW, season);
             const news = await fetchNews();
             renderNewsBetween(news);
+            loadRaceNews(MOCK_RACE.raceName, 'upcoming');
         } else {
             const weekendRace = findWeekendRace(races, now);
             if (weekendRace) {
@@ -1231,17 +1237,19 @@ async function init() {
                 ]);
                 renderWeekendHub(weekendRace, results, now, season);
                 renderNewsBetween(news);
+                const weekendPhase = getPhase(weekendRace, now); // 'post-race' or 'active'
+                loadRaceNews(weekendRace.raceName, weekendPhase === 'post-race' ? 'post-race' : 'upcoming');
             } else {
                 const nextRace = races.find(r => parseSession(r.date, r.time)?.dt > now);
                 renderBetweenRaces(nextRace, races.length, now);
                 const news = await fetchNews();
                 renderNewsBetween(news);
+                loadRaceNews(nextRace?.raceName, 'upcoming');
             }
         }
 
         renderGlanceSection(drivers, cons, races, completedCount);
         renderCalendar(races, now, season);
-        loadRaceNews(); // non-blocking — populates #race-wrap-section from data/race-news.json
 
     } catch(err) {
         console.error(err);
