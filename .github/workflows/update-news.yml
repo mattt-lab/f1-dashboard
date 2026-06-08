@@ -28,6 +28,8 @@ jobs:
 
       - name: Run fetch_news.py
         run: python scripts/fetch_news.py
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Commit data/race-news.json if changed
         run: |

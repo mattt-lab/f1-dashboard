@@ -184,60 +184,131 @@ def _score_item(item, race_name):
     return r_score, p_score
 
 
-def build_post_race_summary(race_name, items):
-    """
-    Build a race summary by combining the best RSS item descriptions.
-    The RSS descriptions are already clean, well-written sentences —
-    no page scraping needed.
-    Priority: result items first ("X wins Monaco…"), then color items.
-    """
+def _race_relevant_items(race_name, items):
+    """Return all RSS items that explicitly mention this race, scored."""
     scored = [(item, *_score_item(item, race_name)) for item in items]
+    return scored
 
-    result_items = [(it, rs) for it, rs, _  in scored if rs > 0]
-    color_items  = [(it, 0)  for it, rs, ps in scored
-                    if rs == 0 and ps == 0
-                    and race_name.lower() in (it["title"] + it.get("description","")).lower()]
 
-    result_items.sort(key=lambda x: -x[1])
+def _collect_snippets(race_name, items, max_items=6):
+    """
+    Gather up to max_items race-relevant snippets (title + description)
+    to use as LLM input. Result items first, then color items.
+    """
+    scored = _race_relevant_items(race_name, items)
+    result_items = sorted([(it, rs) for it, rs, _ in scored if rs > 0], key=lambda x: -x[1])
+    color_items  = [(it, 0) for it, rs, ps in scored
+                    if rs == 0 and race_name.lower() in
+                    (it["title"] + it.get("description", "")).lower()]
 
-    parts, seen = [], set()
+    snippets, seen = [], set()
     for it, _ in (result_items + color_items):
-        desc = it.get("description", "").strip()
-        if desc and desc not in seen:
-            parts.append(desc)
-            seen.add(desc)
-        if len(parts) >= 3:
+        title = it.get("title", "").strip()
+        desc  = it.get("description", "").strip()
+        blob  = f"{title}: {desc}" if desc else title
+        if blob not in seen:
+            snippets.append(blob)
+            seen.add(blob)
+        if len(snippets) >= max_items:
             break
+    return snippets
 
-    if not parts:
-        print("  No relevant RSS descriptions found", file=sys.stderr)
+
+def claude_summarize(race_name, snippets, mode="post-race"):
+    """
+    Call the Anthropic Messages API to write a newsy race summary.
+    Uses stdlib urllib — no extra packages required.
+    Returns the summary string, or None if the key is missing / call fails.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        print("  ANTHROPIC_API_KEY not set — skipping LLM step")
         return None
 
-    return " ".join(parts)
+    if mode == "post-race":
+        instruction = (
+            f"Write a 2-3 sentence newsy race summary of the {race_name} "
+            f"for an F1 dashboard widget. Be specific: name the winner, "
+            f"key results, and any dramatic moments or storylines. "
+            f"Write it as a short news paragraph — punchy, factual, no fluff. "
+            f"Output only the summary text, no preamble."
+        )
+    else:
+        instruction = (
+            f"Write a 2-3 sentence preview of the upcoming {race_name} "
+            f"for an F1 dashboard widget. Highlight key storylines, "
+            f"title contenders, and what to watch for. "
+            f"Output only the preview text, no preamble."
+        )
+
+    content = instruction + "\n\nSource material:\n" + "\n".join(f"• {s}" for s in snippets)
+
+    payload = json.dumps({
+        "model":      "claude-haiku-4-5",
+        "max_tokens": 250,
+        "messages":   [{"role": "user", "content": content}],
+    }).encode()
+
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=payload,
+        headers={
+            "x-api-key":         api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type":      "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            resp = json.loads(r.read().decode())
+            text = resp["content"][0]["text"].strip()
+            print(f"  Claude summary: {len(text)} chars")
+            return text
+    except Exception as e:
+        print(f"  Claude API error: {e}", file=sys.stderr)
+        return None
+
+
+def build_post_race_summary(race_name, items):
+    """
+    1. Collect race-relevant BBC RSS snippets.
+    2. Ask Claude to write a newsy summary from them.
+    3. Fall back to stitching raw descriptions if Claude unavailable.
+    """
+    snippets = _collect_snippets(race_name, items)
+    if not snippets:
+        print("  No relevant RSS items found", file=sys.stderr)
+        return None
+
+    # Try LLM first
+    summary = claude_summarize(race_name, snippets, mode="post-race")
+    if summary:
+        return summary
+
+    # Fallback: stitch the top descriptions together
+    print("  Falling back to raw descriptions…")
+    parts, seen = [], set()
+    for s in snippets[:3]:
+        desc = s.split(": ", 1)[-1]   # strip "Title: " prefix
+        if desc not in seen:
+            parts.append(desc)
+            seen.add(desc)
+    return " ".join(parts) if parts else None
 
 
 def build_preview_summary(race_name, items):
     """
-    Build an upcoming-race preview from RSS descriptions, falling back to
-    Wikipedia's evergreen article for circuit background if nothing found.
+    1. Collect preview-tagged BBC RSS snippets.
+    2. Ask Claude to write a preview from them.
+    3. Fall back to Wikipedia evergreen article if nothing available.
     """
-    scored = [(item, *_score_item(item, race_name)) for item in items]
-    preview_items = [(it, ps) for it, _, ps in scored if ps > 0]
-    preview_items.sort(key=lambda x: -x[1])
+    snippets = _collect_snippets(race_name, items)
+    if snippets:
+        summary = claude_summarize(race_name, snippets, mode="upcoming")
+        if summary:
+            return summary
 
-    parts, seen = [], set()
-    for it, _ in preview_items:
-        desc = it.get("description", "").strip()
-        if desc and desc not in seen:
-            parts.append(desc)
-            seen.add(desc)
-        if len(parts) >= 3:
-            break
-
-    if parts:
-        return " ".join(parts)
-
-    # Wikipedia evergreen fallback (circuit background is relevant pre-race)
+    # Wikipedia evergreen fallback (circuit background is useful pre-race)
     print("  Trying Wikipedia evergreen article for preview…")
     title = race_name.replace(" ", "_")
     url   = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(title)}"
