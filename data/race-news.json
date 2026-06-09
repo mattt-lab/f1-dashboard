@@ -1,12 +1,12 @@
 {
-  "updated": "2026-06-08T16:25:51Z",
-  "phase": "post-race",
+  "updated": "2026-06-09T17:32:15Z",
+  "phase": "upcoming",
   "race": {
-    "name": "Monaco Grand Prix",
-    "round": "6",
+    "name": "Barcelona Grand Prix",
+    "round": "7",
     "season": "2026",
-    "date": "2026-06-07",
-    "circuit": "Circuit de Monaco"
+    "date": "2026-06-14",
+    "circuit": "Circuit de Barcelona-Catalunya"
   },
-  "summary": "Kimi Antonelli surged past Lewis Hamilton in the final laps to win Monaco, capitalizing on a chaotic conclusion marked by two safety car periods and a red flag that reshuffled the grid. Hamilton, visibly frustrated after the race, remarked that he felt compelled to \"remind people who I am,\" underscoring his disappointment at surrendering a strong position late in the race. The result reshapes the championship picture, with Antonelli's maiden Grand Prix victory establishing him as a genuine contender while Hamilton's second-place finish leaves him searching for momentum."
+  "summary": null
 }
