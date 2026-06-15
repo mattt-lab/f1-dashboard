@@ -155,7 +155,7 @@ def fetch_bbc_rss():
     try:
         root = ET.fromstring(xml_text)
         items = []
-        for item in root.findall(".//item")[:5]:
+        for item in root.findall(".//item")[:20]:
             title = item.findtext("title", "").strip()
             link  = item.findtext("link",  "").strip()
             desc  = strip_tags(item.findtext("description", "")).strip()
@@ -182,6 +182,7 @@ PREVIEW_KW = {"preview", "guide", "ones to watch", "what to expect",
 # Each entry is (official name fragment → [additional search terms]).
 RACE_NAME_ALIASES = {
     "spanish":        ["barcelona", "catalunya"],
+    "barcelona":      ["spanish", "spanish grand prix", "catalunya"],  # Jolpica 2026 name
     "british":        ["silverstone"],
     "united states":  ["austin", "cota"],
     "mexican":        ["mexico city"],
@@ -204,6 +205,10 @@ def _search_terms(race_name):
     """Return a list of strings, any of which counts as a match for this race."""
     terms = [race_name.lower()]
     low = race_name.lower()
+    # Strip "Grand Prix" so "Barcelona Grand Prix" → also matches "barcelona"
+    short = re.sub(r'\s+grand prix$', '', low).strip()
+    if short and short != low:
+        terms.append(short)
     for key, aliases in RACE_NAME_ALIASES.items():
         if key in low:
             terms.extend(aliases)
