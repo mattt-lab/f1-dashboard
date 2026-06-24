@@ -380,8 +380,8 @@ def main():
 
     race, phase = get_current_race()
     if not race:
-        print("ERROR: Could not determine current race from Jolpica API")
-        sys.exit(1)
+        print("WARNING: Could not reach Jolpica API — leaving existing JSON unchanged")
+        sys.exit(0)
 
     race_name = race["raceName"]
     year      = race["season"]
