@@ -1,0 +1,23 @@
+{
+  "name": "F1 Dashboard",
+  "short_name": "F1",
+  "description": "Live Formula 1 companion — race weekends, standings, and AI race summaries.",
+  "start_url": "/f1-dashboard/f1-dashboard.html",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#e10600",
+  "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "f1-favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
