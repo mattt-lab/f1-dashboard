@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 
 # ── Constants ──────────────────────────────────────────────────────────────
 JOLPICA_API = "https://api.jolpi.ca/ergast/f1"
-BBC_RSS     = "http://feeds.bbci.co.uk/sport/formula1/rss.xml"
+BBC_RSS     = "https://feeds.bbci.co.uk/sport/formula1/rss.xml"
 OUTPUT_FILE = "data/race-news.json"
 UA          = "F1Dashboard/1.0 (+https://github.com/mattt-lab/f1-dashboard)"
 TIMEOUT     = 12  # seconds per request

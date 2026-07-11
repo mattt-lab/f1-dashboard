@@ -1,4 +1,5 @@
 {
+  "version": "3.0",
   "name": "F1 Dashboard",
   "short_name": "F1",
   "description": "Live Formula 1 companion — race weekends, standings, and AI race summaries.",
