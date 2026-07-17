@@ -280,7 +280,7 @@
     </div>
 </main>
 <footer style="text-align:center;padding:20px;font-size:11px;color:#2a2a2a;letter-spacing:1px">
-    build 2026-07-17 · circuit map moved behind race name, clear of countdown
+    build 2026-07-17 · circuit map centered behind race-name text width
 </footer>
 
 <script>
@@ -592,6 +592,21 @@ async function loadCircuitMap(circuitId) {
     el.innerHTML = `<svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="${rotateCss}">
         <path d="${pathD}" style="fill:none;stroke:#fff;stroke-width:18;stroke-linejoin:round;stroke-linecap:round"/>
     </svg>`;
+
+    // Center the watermark on the visual width of the race-name text, not the
+    // grid column (which stretches far wider than the text itself, since the
+    // countdown box shares the row via an auto-sized column next to it).
+    const textLines = document.querySelectorAll('.wb-left .wb-name, .wb-left .wb-circuit, .wb-left .wb-meta');
+    let textWidth = 0;
+    textLines.forEach(line => {
+        const range = document.createRange();
+        range.selectNodeContents(line);
+        textWidth = Math.max(textWidth, range.getBoundingClientRect().width);
+    });
+    if (textWidth > 0) {
+        const mapWidth = el.getBoundingClientRect().width;
+        el.style.left = `${Math.max(0, (textWidth - mapWidth) / 2)}px`;
+    }
 }
 
 // ── Countdown ────────────────────────────────────────────────────────
