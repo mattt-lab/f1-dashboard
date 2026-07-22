@@ -1,12 +1,12 @@
 {
-  "updated": "2026-07-21T11:17:46Z",
-  "phase": "post-race",
+  "updated": "2026-07-22T11:19:04Z",
+  "phase": "upcoming",
   "race": {
-    "name": "Belgian Grand Prix",
-    "round": "10",
+    "name": "Hungarian Grand Prix",
+    "round": "11",
     "season": "2026",
-    "date": "2026-07-19",
-    "circuit": "Circuit de Spa-Francorchamps"
+    "date": "2026-07-26",
+    "circuit": "Hungaroring"
   },
-  "summary": "Kimi Antonelli crossed the line first at Spa, extending his championship lead after George Russell's retirement handed Mercedes a lopsided result in Belgium. Russell's crash left the British driver 50 points adrift and visibly numb to another mechanical setback, prompting concerns that reliability issues have already decided the title race. Antonelli now commands a commanding cushion in the standings as Mercedes aims to convert its current advantage into a third consecutive championship."
+  "summary": "Verstappen and Norris collide again in the championship battle as McLaren hunts consistency at a track that punishes setup mistakes. Mercedes and Ferrari scramble to exploit the tight Hungaroring's demand for mechanical grip, where qualifying supremacy often dictates the race outcome. Victory here could swing momentum decisively in a season where points remain clustered, with the leader desperate to extend breathing room before the summer break."
 }
