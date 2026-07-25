@@ -283,6 +283,7 @@
     build 2026-07-17 · circuit map centered behind race-name text width
 </footer>
 
+<script src="team-colors.js"></script>
 <script>
 // ── Constants ────────────────────────────────────────────────────────
 const API = 'https://api.jolpi.ca/ergast/f1';
@@ -326,15 +327,9 @@ const CIRCUIT_SVG_MAP = {
     yas_marina:    'yas-marina-2',
 };
 
-const TEAM_COLORS = {
-    red_bull:'#3671C6',ferrari:'#E8002D',mercedes:'#27F4D2',mclaren:'#FF8000',
-    aston_martin:'#229971',alpine:'#FF87BC',williams:'#64C4FF',rb:'#6692FF',
-    alphatauri:'#6692FF',haas:'#B6BABD',kick_sauber:'#52E252',sauber:'#52E252',
-    audi:'#9B3CE8',cadillac:'#CC0000',
-};
+// TEAM_COLORS + teamColor() come from team-colors.js (shared across all three pages)
 
 // ── Utilities ────────────────────────────────────────────────────────
-const teamColor = id => TEAM_COLORS[id?.toLowerCase()] || '#777';
 const flag = c => FLAGS[c] || '🏁';
 const pad = n => String(n).padStart(2,'0');
 const shortName = n => n.replace(/ Grand Prix$/i,'').replace(/Grand Prix/i,'GP').replace(/^Formula 1 /i,'');

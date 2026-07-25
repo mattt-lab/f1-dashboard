@@ -129,14 +129,10 @@
     build 2026-06-06 · 17:51 UTC
 </footer>
 
+<script src="team-colors.js"></script>
 <script>
 const API = 'https://api.jolpi.ca/ergast/f1';
-const TEAM_COLORS = {
-    red_bull:'#3671C6',ferrari:'#E8002D',mercedes:'#27F4D2',mclaren:'#FF8000',
-    aston_martin:'#229971',alpine:'#FF87BC',williams:'#64C4FF',rb:'#6692FF',
-    alphatauri:'#6692FF',haas:'#B6BABD',kick_sauber:'#52E252',sauber:'#52E252',audi:'#9B3CE8',
-};
-const teamColor = id => TEAM_COLORS[id?.toLowerCase()] || '#777';
+// TEAM_COLORS + teamColor() come from team-colors.js (shared across all three pages)
 const parseSession = (date, time) => date ? {dt: new Date(`${date}T${time||'12:00:00Z'}`)} : null;
 
 // Constructors can score up to 44 pts per race (P1 + P2 + one FL)
