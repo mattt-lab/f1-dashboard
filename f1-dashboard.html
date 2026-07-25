@@ -286,6 +286,7 @@
 <script>
 // ── Constants ────────────────────────────────────────────────────────
 const API = 'https://api.jolpi.ca/ergast/f1';
+const OPENF1_API = 'https://api.openf1.org/v1';
 const RSS_API = 'https://api.rss2json.com/v1/api.json';
 const RSS_FEED = 'https://feeds.bbci.co.uk/sport/formula1/rss.xml';
 
@@ -386,7 +387,136 @@ function getPhase(race, now) {
 }
 
 // ── Fetch helpers ────────────────────────────────────────────────────
-async function fetchRoundResults(season, round) {
+
+// Jolpica (Ergast) can lag same-day session results by hours. OpenF1 posts
+// results within minutes of a session ending, so it's used as a stand-in
+// ONLY when Jolpica hasn't caught up yet — Jolpica always wins once it has data,
+// since it carries richer detail (full retirement reasons, etc).
+const OPENF1_TEAM_TO_CONSTRUCTOR_ID = {
+    'red bull racing': 'red_bull',
+    'ferrari':          'ferrari',
+    'mercedes':         'mercedes',
+    'mclaren':          'mclaren',
+    'aston martin':     'aston_martin',
+    'alpine':           'alpine',
+    'williams':         'williams',
+    'racing bulls':     'rb',
+    'rb':               'rb',
+    'alphatauri':       'alphatauri',
+    'haas f1 team':     'haas',
+    'haas':             'haas',
+    'kick sauber':      'kick_sauber',
+    'sauber':           'sauber',
+    'audi':             'audi',
+    'cadillac':         'cadillac',
+};
+
+let openf1SessionsBySeason = {}; // season -> Promise<sessions[]>, cached per page load
+
+function fetchOpenF1Sessions(season) {
+    if (!openf1SessionsBySeason[season]) {
+        openf1SessionsBySeason[season] = fetch(`${OPENF1_API}/sessions?year=${season}`)
+            .then(r => r.ok ? r.json() : [])
+            .catch(() => []);
+    }
+    return openf1SessionsBySeason[season];
+}
+
+function findOpenF1Session(sessions, dateStr, sessionName) {
+    if (!dateStr) return null;
+    return sessions.find(s => s.session_name === sessionName && s.date_start?.slice(0, 10) === dateStr) || null;
+}
+
+function fmtLapTime(seconds) {
+    if (seconds == null) return undefined;
+    const m = Math.floor(seconds / 60);
+    const s = (seconds - m * 60).toFixed(3);
+    return `${m}:${s.padStart(6, '0')}`;
+}
+
+function fmtRaceTime(seconds) {
+    if (seconds == null) return undefined;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = (seconds % 60).toFixed(3);
+    return h > 0 ? `${h}:${pad(m)}:${s.padStart(6, '0')}` : `${m}:${s.padStart(6, '0')}`;
+}
+
+// Converts OpenF1's session_result + drivers into the same shape Jolpica
+// returns, so the existing renderQualResults/renderRaceResults need no changes.
+async function fetchOpenF1SessionAsErgast(sessionKey, kind) {
+    const safe = async url => {
+        try { const r = await fetch(url); return r.ok ? r.json() : []; }
+        catch { return []; }
+    };
+    const [results, drivers] = await Promise.all([
+        safe(`${OPENF1_API}/session_result?session_key=${sessionKey}`),
+        safe(`${OPENF1_API}/drivers?session_key=${sessionKey}`),
+    ]);
+    // Either request can be independently rate-limited by OpenF1's free tier.
+    // If drivers came back empty, results would render with blank names —
+    // treat that as "no usable data" so the caller falls back to Jolpica.
+    if (!results.length || !drivers.length) return [];
+
+    const byNumber = {};
+    drivers.forEach(d => { byNumber[d.driver_number] = d; });
+
+    return results
+        .filter(r => r.position != null)
+        .sort((a, b) => a.position - b.position)
+        .map(r => {
+            const d = byNumber[r.driver_number] || {};
+            const constructorId = OPENF1_TEAM_TO_CONSTRUCTOR_ID[(d.team_name || '').toLowerCase()] || '';
+            const base = {
+                position: String(r.position),
+                Driver: { givenName: d.first_name || '', familyName: d.last_name || d.name_acronym || '?' },
+                Constructor: { constructorId },
+            };
+            if (kind === 'qualifying') {
+                return { ...base, Q1: fmtLapTime(r.duration?.[0]), Q2: fmtLapTime(r.duration?.[1]), Q3: fmtLapTime(r.duration?.[2]) };
+            }
+            // race / sprint — OpenF1 has no text reason for a retirement, so status
+            // stays generic ("Retired") until Jolpica's fuller data takes over.
+            const positionText = r.dsq ? 'D' : (r.dnf ? 'R' : (r.dns ? 'W' : String(r.position)));
+            const status = r.dsq ? 'Disqualified' : (r.dnf ? 'Retired' : (r.dns ? 'Did not start' : 'Finished'));
+            let time;
+            if (!r.dnf && !r.dns && !r.dsq) {
+                if (typeof r.gap_to_leader === 'string') time = r.gap_to_leader.replace(/LAP/i, 'Lap');
+                else if (r.gap_to_leader === 0)          time = fmtRaceTime(r.duration);
+                else if (typeof r.gap_to_leader === 'number') time = `+${r.gap_to_leader.toFixed(3)}`;
+            }
+            return { ...base, positionText, status, Time: time ? { time } : undefined, points: String(r.points ?? 0) };
+        });
+}
+
+// `need` marks which session types Jolpica came back empty for — we only ask
+// OpenF1 for those, and one at a time (not Promise.all), since its free tier
+// rate-limits bursts of concurrent requests from the same client.
+async function fetchOpenF1RoundResults(season, race, need) {
+    const out = { qualifying: [], race: [], sprint: [] };
+    if (!race) return out;
+    try {
+        const sessions = await fetchOpenF1Sessions(season);
+        if (!sessions.length) return out;
+
+        const plan = [
+            need.qualifying && { key: 'qualifying', kind: 'qualifying', session: findOpenF1Session(sessions, race.Qualifying?.date, 'Qualifying') },
+            need.race       && { key: 'race',       kind: 'race',       session: findOpenF1Session(sessions, race.date, 'Race') },
+            need.sprint     && { key: 'sprint',      kind: 'race',       session: findOpenF1Session(sessions, race.Sprint?.date, 'Sprint') },
+        ].filter(Boolean);
+
+        for (const p of plan) {
+            if (p.session) out[p.key] = await fetchOpenF1SessionAsErgast(p.session.session_key, p.kind);
+        }
+        return out;
+    } catch {
+        return out;
+    }
+}
+
+async function fetchRoundResults(season, round, race) {
+    race = race || allRaces.find(r => r.round === String(round));
+
     const safe = async url => {
         try { const r = await fetch(url); return r.ok ? r.json() : null; }
         catch { return null; }
@@ -396,10 +526,21 @@ async function fetchRoundResults(season, round) {
         safe(`${API}/${season}/${round}/results.json`),
         safe(`${API}/${season}/${round}/sprint.json`),
     ]);
-    return {
+    const jolpica = {
         qualifying: qData?.MRData?.RaceTable?.Races?.[0]?.QualifyingResults || [],
         race:       rData?.MRData?.RaceTable?.Races?.[0]?.Results || [],
         sprint:     sData?.MRData?.RaceTable?.Races?.[0]?.SprintResults || [],
+    };
+
+    // Only fall back to OpenF1 for whichever session types Jolpica hasn't posted yet.
+    const need = { qualifying: !jolpica.qualifying.length, race: !jolpica.race.length, sprint: !jolpica.sprint.length };
+    if (!race || (!need.qualifying && !need.race && !need.sprint)) return jolpica;
+
+    const openf1 = await fetchOpenF1RoundResults(season, race, need);
+    return {
+        qualifying: jolpica.qualifying.length ? jolpica.qualifying : openf1.qualifying,
+        race:       jolpica.race.length       ? jolpica.race       : openf1.race,
+        sprint:     jolpica.sprint.length      ? jolpica.sprint     : openf1.sprint,
     };
 }
 
@@ -1276,7 +1417,7 @@ async function init() {
             const weekendRace = findWeekendRace(races, now);
             if (weekendRace) {
                 const [results, news] = await Promise.all([
-                    fetchRoundResults(season, weekendRace.round),
+                    fetchRoundResults(season, weekendRace.round, weekendRace),
                     fetchNews(),
                 ]);
                 renderWeekendHub(weekendRace, results, now, season);
