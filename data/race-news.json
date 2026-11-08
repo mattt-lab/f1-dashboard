@@ -1,6 +1,6 @@
 {
-  "updated": "2026-11-08T10:11:18Z",
-  "phase": "upcoming",
+  "updated": "2026-11-08T17:53:45Z",
+  "phase": "post-race",
   "race": {
     "name": "Brazilian Grand Prix",
     "round": "20",
@@ -8,5 +8,5 @@
     "date": "2026-11-08",
     "circuit": "Autódromo José Carlos Pace"
   },
-  "summary": "The Brazilian Grand Prix, currently held under the name São Paulo Grand Prix, is a Formula One championship race which is currently held at the Autódromo José Carlos Pace in Interlagos neighborhood, Cidade Dutra, São Paulo. The inaugural Brazilian Grand Prix, held in 1972, was held as a non-championship event, with all races from the 1973 Brazilian Grand Prix onwards held as a championship event. Previously, the race was held at Jacarepaguá from 1978 to 1989, before returning to Interlagos in 1990, where it has since been held."
+  "summary": null
 }
