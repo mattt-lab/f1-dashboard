@@ -1,12 +1,12 @@
 {
-  "updated": "2026-11-09T19:47:06Z",
-  "phase": "post-race",
+  "updated": "2026-11-10T17:01:19Z",
+  "phase": "upcoming",
   "race": {
-    "name": "Brazilian Grand Prix",
-    "round": "20",
+    "name": "Las Vegas Grand Prix",
+    "round": "21",
     "season": "2026",
-    "date": "2026-11-08",
-    "circuit": "Autódromo José Carlos Pace"
+    "date": "2026-11-22",
+    "circuit": "Las Vegas Strip Street Circuit"
   },
-  "summary": null
+  "summary": "The Las Vegas Grand Prix is a motor racing event that forms part of the Formula One World Championship, taking place in Paradise, Nevada, in the United States. It is conducted as a night race on a temporary street circuit that includes parts of the Las Vegas Strip. The first race was held on November 18, 2023. Formula One and Las Vegas have signed an agreement to host the race through 2037."
 }
