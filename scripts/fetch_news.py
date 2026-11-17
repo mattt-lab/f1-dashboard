@@ -259,7 +259,52 @@ def _collect_snippets(race_name, items, max_items=6):
     return snippets
 
 
-def claude_summarize(race_name, snippets, mode="post-race"):
+def fetch_standings_facts(race):
+    """
+    Verified season facts (from Jolpica) to ground the LLM. Without these the
+    model fills championship sentences from stale training memory — it once
+    wrote that McLaren was chasing the constructors' title while Mercedes led.
+    Returns a list of fact strings, or [] if the standings can't be fetched.
+    """
+    facts = []
+    try:
+        d = fetch_json(f"{JOLPICA_API}/current/driverStandings.json")
+        c = fetch_json(f"{JOLPICA_API}/current/constructorStandings.json")
+        cal = fetch_json(f"{JOLPICA_API}/current.json?limit=100")
+        ds = d["MRData"]["StandingsTable"]["StandingsLists"][0]
+        cs = c["MRData"]["StandingsTable"]["StandingsLists"][0]
+        rounds = cal["MRData"]["RaceTable"]["Races"]
+        this_round = int(race["round"])
+        after = [r["raceName"] for r in rounds if int(r["round"]) > this_round]
+
+        facts.append(f"Standings below are as of the end of round {ds['round']} of {len(rounds)}.")
+        facts.append(f"The {race['raceName']} is round {this_round}; "
+                     f"{len(after)} race(s) follow it" + (f" ({', '.join(after)})." if after else "."))
+        facts.append("Drivers' championship: " + "; ".join(
+            f"{x['position']}. {x['Driver']['givenName']} {x['Driver']['familyName']} "
+            f"({x['Constructors'][0]['name']}) {x['points']} pts"
+            for x in ds["DriverStandings"][:5]))
+        facts.append("Constructors' championship: " + "; ".join(
+            f"{x['position']}. {x['Constructor']['name']} {x['points']} pts"
+            for x in cs["ConstructorStandings"][:5]))
+    except Exception as e:  # network / schema problems must never break the run
+        print(f"  Could not build standings facts: {e}", file=sys.stderr)
+        return []
+    return facts
+
+
+GROUNDING_RULES = (
+    "You write copy for an F1 dashboard. Use ONLY the 'Verified facts' and "
+    "'Source material' given in the user message. Do NOT use outside knowledge "
+    "about this season: no standings, drivers, team line-ups, results or history "
+    "that are not stated there. Never name a driver or team that does not appear "
+    "in the material. If the material doesn't support a point, leave it out — "
+    "write fewer sentences rather than invent anything. Verified facts outrank "
+    "source material if they conflict."
+)
+
+
+def claude_summarize(race_name, snippets, facts=None, mode="post-race"):
     """
     Call the Anthropic Messages API to write a newsy race summary.
     Uses stdlib urllib — no extra packages required.
@@ -291,11 +336,19 @@ def claude_summarize(race_name, snippets, mode="post-race"):
             f"Output only the preview text, no preamble."
         )
 
-    content = instruction + "\n\nSource material:\n" + "\n".join(f"• {s}" for s in snippets)
+    facts_block = ("\n".join(f"• {f}" for f in facts) if facts
+                   else "• (No verified standings available — make no championship claims.)")
+    if mode == "post-race":
+        facts_block += ("\n• If the standings round above is earlier than this race's round, "
+                        "they pre-date the result: don't state post-race championship positions as fact.")
+    content = (instruction
+               + "\n\nVerified facts:\n" + facts_block
+               + "\n\nSource material:\n" + "\n".join(f"• {s}" for s in snippets))
 
     payload = json.dumps({
         "model":      "claude-haiku-4-5",
         "max_tokens": 250,
+        "system":     GROUNDING_RULES,
         "messages":   [{"role": "user", "content": content}],
     }).encode()
 
@@ -319,7 +372,7 @@ def claude_summarize(race_name, snippets, mode="post-race"):
         return None
 
 
-def build_post_race_summary(race_name, items):
+def build_post_race_summary(race_name, items, facts=None):
     """
     1. Collect race-relevant BBC RSS snippets.
     2. Ask Claude to write a newsy summary from them.
@@ -331,7 +384,7 @@ def build_post_race_summary(race_name, items):
         return None
 
     # Try LLM first
-    summary = claude_summarize(race_name, snippets, mode="post-race")
+    summary = claude_summarize(race_name, snippets, facts, mode="post-race")
     if summary:
         return summary
 
@@ -346,7 +399,7 @@ def build_post_race_summary(race_name, items):
     return " ".join(parts) if parts else None
 
 
-def build_preview_summary(race_name, items):
+def build_preview_summary(race_name, items, facts=None):
     """
     1. Collect preview-tagged BBC RSS snippets.
     2. Ask Claude to write a preview from them.
@@ -354,7 +407,7 @@ def build_preview_summary(race_name, items):
     """
     snippets = _collect_snippets(race_name, items)
     if snippets:
-        summary = claude_summarize(race_name, snippets, mode="upcoming")
+        summary = claude_summarize(race_name, snippets, facts, mode="upcoming")
         if summary:
             return summary
 
@@ -409,10 +462,11 @@ def main():
     print(f"\n── Fetching {'post-race summary' if phase == 'post-race' else 'race preview'} ──")
     items = fetch_bbc_rss()
 
+    facts = fetch_standings_facts(race)
     if phase == "post-race":
-        text = build_post_race_summary(race_name, items)
+        text = build_post_race_summary(race_name, items, facts)
     else:
-        text = build_preview_summary(race_name, items)
+        text = build_preview_summary(race_name, items, facts)
 
     if text:
         result["summary"] = text
